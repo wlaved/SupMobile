@@ -14,6 +14,8 @@ import android.content.SharedPreferences;
 import androidx.documentfile.provider.DocumentFile;
 import java.io.File;
 import java.util.concurrent.TimeUnit;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 // Import BitcoinJ classes
 import org.bitcoinj.core.*;
@@ -21,6 +23,8 @@ import org.bitcoinj.params.TestNet3Params;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.wallet.Wallet;
+import org.bitcoinj.wallet.WalletTransaction;
+import org.bitcoinj.wallet.listeners.WalletCoinsReceivedEventListener;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.SPVBlockStore;
 import org.bitcoinj.core.BlockChain;
@@ -46,14 +50,11 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Restore saved storage URI
         SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
         String savedUri = settings.getString("storage_uri", null);
         if (savedUri != null) {
             storageUri = Uri.parse(savedUri);
-            // Attempt to resolve a File path from URI (Best Effort for Termux/Legacy)
             if (storageUri.getPath() != null && storageUri.getPath().contains(":")) {
-                // Very crude path resolution for standard external storage
                 String[] parts = storageUri.getPath().split(":");
                 if (parts.length > 1) {
                     customStorageDir = new File(Environment.getExternalStorageDirectory(), parts[1]);
@@ -61,7 +62,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Initialize BitcoinJ
         startBitcoinNode();
 
         webView = new WebView(this);
@@ -73,12 +73,8 @@ public class MainActivity extends Activity {
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
 
-        // Bind the Bridge
         webView.addJavascriptInterface(new SupJSInterface(), "SupApp");
-
         webView.setWebViewClient(new WebViewClient());
-
-        // Load the dashboard
         webView.loadUrl("file:///android_asset/dashboard.html");
     }
 
@@ -86,8 +82,6 @@ public class MainActivity extends Activity {
         new Thread(() -> {
             try {
                 params = TestNet3Params.get();
-
-                // Location for the SPV chain file
                 File chainFile;
                 if (customStorageDir != null && customStorageDir.exists() && customStorageDir.canWrite()) {
                     chainFile = new File(customStorageDir, "sup_mobile.spvchain");
@@ -95,31 +89,54 @@ public class MainActivity extends Activity {
                     chainFile = new File(getExternalFilesDir(null), "sup_mobile.spvchain");
                 }
 
-                // Initialize Wallet
                 wallet = new Wallet(params);
 
-                // Initialize BlockStore (SPV)
-                blockStore = new SPVBlockStore(params, chainFile);
+                // Add Listener for Watch List / Auto-Pinning
+                wallet.addCoinsReceivedEventListener(new WalletCoinsReceivedEventListener() {
+                    @Override
+                    public void onCoinsReceived(Wallet w, Transaction tx, Coin prevBalance, Coin newBalance) {
+                        checkForSupContent(tx);
+                    }
+                });
 
-                // Initialize Chain
+                blockStore = new SPVBlockStore(params, chainFile);
                 blockChain = new BlockChain(params, wallet, blockStore);
 
-                // Initialize PeerGroup (The Network Connection)
                 peerGroup = new PeerGroup(params, blockChain);
                 peerGroup.addWallet(wallet);
                 peerGroup.addPeerDiscovery(new DnsDiscovery(params));
 
-                // Start Async
                 peerGroup.startAsync();
                 peerGroup.startBlockChainDownload(null);
 
-                runOnUiThread(() -> Toast.makeText(this, "Bitcoin Node Started! Storing in: " + chainFile.getParent(), Toast.LENGTH_LONG).show());
+                runOnUiThread(() -> Toast.makeText(this, "Node Started! Height: " + blockChain.getBestChainHeight(), Toast.LENGTH_LONG).show());
 
             } catch (Exception e) {
                 e.printStackTrace();
-                runOnUiThread(() -> Toast.makeText(this, "Node Start Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
+    }
+
+    // Logic to parse transactions for Sup/IPFS data
+    private void checkForSupContent(Transaction tx) {
+        try {
+            // Very basic parser: look for OP_RETURN
+            for (TransactionOutput out : tx.getOutputs()) {
+                Script script = out.getScriptPubKey();
+                if (script.isOpReturn()) {
+                    String data = new String(script.getChunks().get(1).data);
+                    // Hypothetical format: "SUP01 IPFS:<hash>"
+                    if (data.contains("IPFS:")) {
+                        String ipfsHash = data.substring(data.indexOf("IPFS:") + 5).trim();
+                        // Trigger IPFS Pin
+                        new SupJSInterface().pinIpfs(ipfsHash);
+                        runOnUiThread(() -> Toast.makeText(this, "Auto-Pinning: " + ipfsHash, Toast.LENGTH_SHORT).show());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Ignore parse errors
+        }
     }
 
     @Override
@@ -134,7 +151,6 @@ public class MainActivity extends Activity {
                 editor.putString("storage_uri", storageUri.toString());
                 editor.commit();
 
-                // Try to resolve path for next restart
                 String path = storageUri.getPath();
                 if (path.contains(":")) {
                     String[] parts = path.split(":");
@@ -142,14 +158,12 @@ public class MainActivity extends Activity {
                          customStorageDir = new File(Environment.getExternalStorageDirectory(), parts[1]);
                     }
                 }
-
-                Toast.makeText(this, "Storage Selected. Restart app to use for Node.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Storage Selected.", Toast.LENGTH_SHORT).show();
                 webView.reload();
             }
         }
     }
 
-    // The Bridge Class
     public class SupJSInterface {
         @JavascriptInterface
         public void showToast(String toast) {
@@ -176,6 +190,35 @@ public class MainActivity extends Activity {
                 return "Running. Peers: " + peerGroup.numConnectedPeers() + ". Height: " + blockChain.getBestChainHeight();
             }
             return "Stopped";
+        }
+
+        // Watch a specific address/URN (Add to Wallet Bloom Filter)
+        @JavascriptInterface
+        public void watchProfile(String address) {
+            try {
+                Address addr = Address.fromBase58(params, address);
+                wallet.addWatchedAddress(addr);
+                Toast.makeText(MainActivity.this, "Watching: " + address, Toast.LENGTH_SHORT).show();
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this, "Invalid Address: " + address, Toast.LENGTH_SHORT).show();
+            }
+        }
+
+        // Bridge to Local IPFS Node (Termux)
+        @JavascriptInterface
+        public String pinIpfs(String hash) {
+            new Thread(() -> {
+                try {
+                    URL url = new URL("http://127.0.0.1:5001/api/v0/pin/add?arg=" + hash);
+                    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                    conn.setRequestMethod("POST");
+                    conn.getResponseCode(); // Trigger request
+                    conn.disconnect();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }).start();
+            return "Pin request sent for " + hash;
         }
 
         @JavascriptInterface
