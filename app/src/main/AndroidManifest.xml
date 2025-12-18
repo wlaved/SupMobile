@@ -3,7 +3,13 @@
     package="com.embiimob.supmobile">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
-    <application android:label="Sup! Mobile" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <application
+        android:label="Sup! Mobile"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+        android:requestLegacyExternalStorage="true"
+        android:usesCleartextTraffic="true">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

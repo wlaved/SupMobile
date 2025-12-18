@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sup! Dashboard</title>
+    <style>
+        body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
+        .btn { display: inline-block; padding: 20px 40px; margin: 20px; background: #6200ea; color: #fff; text-decoration: none; border-radius: 10px; font-size: 1.2em; }
+        .btn:hover { background: #7c4dff; }
+    </style>
+</head>
+<body>
+    <h1>Sup! Mobile Dashboard</h1>
+    <a href="SupThread.html" class="btn">Social Feed</a>
+    <a href="index.html" class="btn">Object Browser</a>
+    <br>
+    <div id="status"></div>
+    <script>
+        // Check for bridge
+        if (window.SupApp) {
+            document.getElementById('status').innerText = "SupApp Bridge Active";
+        } else {
+            document.getElementById('status').innerText = "Web Mode (No Bridge)";
+        }
+    </script>
+</body>
+</html>
