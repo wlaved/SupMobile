@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:background="#111111">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:background="#000000" android:orientation="vertical" android:padding="10dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/statusIndicator" android:layout_width="20dp" android:layout_height="20dp"
+                android:background="#00FF00" android:layout_marginRight="10dp"/>
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="Sup!?" android:textColor="#FFFFFF" android:textSize="24sp" android:textStyle="bold" />
+            <Button android:id="@+id/btnRefresh" android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Sync" android:background="#333333" android:textColor="#FFFFFF"/>
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="5dp" android:gravity="center_vertical">
+            <ToggleButton android:id="@+id/toggleLocalMode" android:layout_width="wrap_content" android:layout_height="40dp"
+                android:textOn="LOCAL" android:textOff="WEB" android:background="#444444"
+                android:textColor="#FFFFFF" android:textSize="12sp" android:layout_marginRight="10dp"/>
+            <Button android:id="@+id/btnSelectFolder" android:layout_width="match_parent" android:layout_height="40dp"
+                android:text="Select Blockchain Folder" android:background="#222222" android:textColor="#AAAAAA" android:textSize="12sp"/>
+        </LinearLayout>
+    </LinearLayout>
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:padding="10dp">
+        <TextView android:id="@+id/feedOutput" android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Ready to Sync..." android:textColor="#00FF00" android:fontFamily="monospace" android:textSize="14sp"/>
+    </ScrollView>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="horizontal" android:padding="5dp" android:background="#222222">
+        <EditText android:id="@+id/inputMsg" android:layout_width="0dp" android:layout_height="wrap_content"
+            android:layout_weight="1" android:hint="Type a message..." android:textColor="#FFFFFF" android:textColorHint="#888888"/>
+        <Button android:id="@+id/btnMint" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="MINT" android:background="#FF9900" android:textColor="#000000" android:textStyle="bold"/>
+    </LinearLayout>
+</LinearLayout>
