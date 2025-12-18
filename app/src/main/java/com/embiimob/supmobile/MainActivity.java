@@ -20,6 +20,7 @@ import java.net.URL;
 // Import BitcoinJ classes
 import org.bitcoinj.core.*;
 import org.bitcoinj.params.TestNet3Params;
+import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.wallet.Wallet;
@@ -46,12 +47,17 @@ public class MainActivity extends Activity {
     private PeerGroup peerGroup;
     private File customStorageDir = null;
 
+    // Config
+    private boolean isTestnet = true; // Default
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
         SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
         String savedUri = settings.getString("storage_uri", null);
+        isTestnet = settings.getBoolean("is_testnet", true);
+
         if (savedUri != null) {
             storageUri = Uri.parse(savedUri);
             if (storageUri.getPath() != null && storageUri.getPath().contains(":")) {
@@ -79,16 +85,36 @@ public class MainActivity extends Activity {
     }
 
     private void startBitcoinNode() {
+        if (peerGroup != null && peerGroup.isRunning()) {
+            peerGroup.stop();
+        }
+
         new Thread(() -> {
             try {
-                params = TestNet3Params.get();
-                File chainFile;
-                if (customStorageDir != null && customStorageDir.exists() && customStorageDir.canWrite()) {
-                    chainFile = new File(customStorageDir, "sup_mobile.spvchain");
+                // Select Network
+                params = isTestnet ? TestNet3Params.get() : MainNetParams.get();
+
+                // Smart Path Logic: Look for standard Bitcoin Core folders
+                File chainFile = null;
+                if (customStorageDir != null && customStorageDir.exists()) {
+                    // Check logic: Sup/bitcoin/testnet3 or Sup/bitcoin
+                    File bitcoinDir = new File(customStorageDir, "bitcoin");
+                    if (bitcoinDir.exists()) {
+                         File netDir = isTestnet ? new File(bitcoinDir, "testnet3") : bitcoinDir;
+                         if (netDir.exists()) {
+                             chainFile = new File(netDir, "sup_mobile.spvchain");
+                         }
+                    }
+
+                    // Fallback to root of selected folder if structure not found
+                    if (chainFile == null) {
+                        chainFile = new File(customStorageDir, "sup_mobile.spvchain");
+                    }
                 } else {
                     chainFile = new File(getExternalFilesDir(null), "sup_mobile.spvchain");
                 }
 
+                // Initialize Wallet (In-Memory for prototype, should persist in real app)
                 wallet = new Wallet(params);
 
                 // Add Listener for Watch List / Auto-Pinning
@@ -109,26 +135,24 @@ public class MainActivity extends Activity {
                 peerGroup.startAsync();
                 peerGroup.startBlockChainDownload(null);
 
-                runOnUiThread(() -> Toast.makeText(this, "Node Started! Height: " + blockChain.getBestChainHeight(), Toast.LENGTH_LONG).show());
+                final String finalPath = chainFile.getAbsolutePath();
+                runOnUiThread(() -> Toast.makeText(this, "Node Started (" + (isTestnet?"Testnet":"Mainnet") + ") @ " + finalPath, Toast.LENGTH_LONG).show());
 
             } catch (Exception e) {
                 e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show());
             }
         }).start();
     }
 
-    // Logic to parse transactions for Sup/IPFS data
     private void checkForSupContent(Transaction tx) {
         try {
-            // Very basic parser: look for OP_RETURN
             for (TransactionOutput out : tx.getOutputs()) {
                 Script script = out.getScriptPubKey();
                 if (script.isOpReturn()) {
                     String data = new String(script.getChunks().get(1).data);
-                    // Hypothetical format: "SUP01 IPFS:<hash>"
                     if (data.contains("IPFS:")) {
                         String ipfsHash = data.substring(data.indexOf("IPFS:") + 5).trim();
-                        // Trigger IPFS Pin
                         new SupJSInterface().pinIpfs(ipfsHash);
                         runOnUiThread(() -> Toast.makeText(this, "Auto-Pinning: " + ipfsHash, Toast.LENGTH_SHORT).show());
                     }
@@ -158,7 +182,8 @@ public class MainActivity extends Activity {
                          customStorageDir = new File(Environment.getExternalStorageDirectory(), parts[1]);
                     }
                 }
-                Toast.makeText(this, "Storage Selected.", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Storage Selected. Restarting Node...", Toast.LENGTH_SHORT).show();
+                startBitcoinNode(); // Restart with new storage
                 webView.reload();
             }
         }
@@ -178,6 +203,20 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void toggleNetwork() {
+            isTestnet = !isTestnet;
+            SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, 0).edit();
+            editor.putBoolean("is_testnet", isTestnet);
+            editor.commit();
+            startBitcoinNode();
+        }
+
+        @JavascriptInterface
+        public boolean isTestnet() {
+            return isTestnet;
+        }
+
+        @JavascriptInterface
         public String getStoragePath() {
             if (storageUri != null) return storageUri.toString();
             return null;
@@ -187,16 +226,15 @@ public class MainActivity extends Activity {
         public String getNodeStatus() {
             if (peerGroup == null) return "Initializing...";
             if (peerGroup.isRunning()) {
-                return "Running. Peers: " + peerGroup.numConnectedPeers() + ". Height: " + blockChain.getBestChainHeight();
+                return (isTestnet?"[TEST]":"[MAIN]") + " Peers: " + peerGroup.numConnectedPeers() + ". Height: " + blockChain.getBestChainHeight();
             }
             return "Stopped";
         }
 
-        // Watch a specific address/URN (Add to Wallet Bloom Filter)
         @JavascriptInterface
         public void watchProfile(String address) {
             try {
-                Address addr = Address.fromBase58(params, address);
+                Address addr = Address.fromString(params, address);
                 wallet.addWatchedAddress(addr);
                 Toast.makeText(MainActivity.this, "Watching: " + address, Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
@@ -204,7 +242,6 @@ public class MainActivity extends Activity {
             }
         }
 
-        // Bridge to Local IPFS Node (Termux)
         @JavascriptInterface
         public String pinIpfs(String hash) {
             new Thread(() -> {
@@ -212,7 +249,7 @@ public class MainActivity extends Activity {
                     URL url = new URL("http://127.0.0.1:5001/api/v0/pin/add?arg=" + hash);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
-                    conn.getResponseCode(); // Trigger request
+                    conn.getResponseCode();
                     conn.disconnect();
                 } catch (Exception e) {
                     e.printStackTrace();

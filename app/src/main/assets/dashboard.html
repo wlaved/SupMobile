@@ -23,6 +23,7 @@
         <h3>Storage & Node</h3>
         <div class="btn" style="background: #03dac6; color: #000;" onclick="selectStorage()">Select Storage Folder</div>
         <div class="btn" style="background: #cf6679;" onclick="listFiles()">Scan Files</div>
+        <div class="btn" style="background: #ff9800;" onclick="toggleNetwork()">Switch Network</div>
     </div>
 
     <div id="nodeStatus" class="status-box">Node: Starting...</div>
@@ -38,6 +39,16 @@
                 window.SupApp.selectStorage();
             } else {
                 alert("Bridge not active");
+            }
+        }
+
+        function toggleNetwork() {
+            if (window.SupApp) {
+                window.SupApp.toggleNetwork();
+                // Wait a moment for restart
+                setTimeout(() => {
+                    alert("Network Switched!");
+                }, 1000);
             }
         }
 
