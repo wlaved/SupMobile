@@ -7,7 +7,7 @@
         body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
         .btn { display: inline-block; padding: 20px 40px; margin: 20px; background: #6200ea; color: #fff; text-decoration: none; border-radius: 10px; font-size: 1.2em; cursor: pointer;}
         .btn:hover { background: #7c4dff; }
-        .status-box { margin-top: 20px; color: #b0b0b0; font-family: monospace; }
+        .status-box { margin-top: 20px; color: #03dac6; font-family: monospace; font-size: 1.1em; border: 1px solid #333; padding: 10px; }
         #fileList { text-align: left; background: #1e1e1e; padding: 10px; margin: 20px auto; max-width: 80%; max-height: 200px; overflow-y: auto; border-radius: 5px; }
     </style>
 </head>
@@ -25,7 +25,7 @@
         <div class="btn" style="background: #cf6679;" onclick="listFiles()">Scan Files</div>
     </div>
 
-    <div id="status" class="status-box">Checking Bridge...</div>
+    <div id="nodeStatus" class="status-box">Node: Starting...</div>
     <div id="storagePath" class="status-box">Storage: None</div>
     <div id="fileList"></div>
 
@@ -43,7 +43,7 @@
 
         function listFiles() {
             if (window.SupApp) {
-                document.getElementById('status').innerText = "Scanning...";
+                document.getElementById('fileList').innerText = "Scanning...";
                 var files = window.SupApp.listFiles("");
                 try {
                     var fileArr = JSON.parse(files);
@@ -52,16 +52,21 @@
                          html += "<div>" + f + "</div>";
                     });
                     document.getElementById('fileList').innerHTML = html;
-                    document.getElementById('status').innerText = "Scan Complete";
                 } catch(e) {
                     document.getElementById('fileList').innerText = files;
                 }
             }
         }
 
+        // Poll Node Status
+        setInterval(() => {
+            if (window.SupApp) {
+                document.getElementById('nodeStatus').innerText = "Node: " + window.SupApp.getNodeStatus();
+            }
+        }, 2000);
+
         // Initialize
         if (window.SupApp) {
-            document.getElementById('status').innerText = "SupApp Bridge Active";
             var path = window.SupApp.getStoragePath();
             if (path) {
                 document.getElementById('storagePath').innerText = "Storage: " + path;
@@ -69,7 +74,7 @@
                 document.getElementById('storagePath').innerText = "Storage: Not Selected";
             }
         } else {
-            document.getElementById('status').innerText = "Web Mode (No Bridge)";
+            document.getElementById('nodeStatus').innerText = "Web Mode (No Bridge)";
         }
     </script>
 </body>
