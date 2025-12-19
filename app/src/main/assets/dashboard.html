@@ -9,6 +9,7 @@
         .btn:hover { background: #7c4dff; }
         .status-box { margin-top: 20px; color: #03dac6; font-family: monospace; font-size: 1.1em; border: 1px solid #333; padding: 10px; }
         #fileList { text-align: left; background: #1e1e1e; padding: 10px; margin: 20px auto; max-width: 80%; max-height: 200px; overflow-y: auto; border-radius: 5px; }
+        .control-panel { margin-top: 20px; padding: 10px; border: 1px dashed #444; }
     </style>
 </head>
 <body>
@@ -24,6 +25,12 @@
         <div class="btn" style="background: #03dac6; color: #000;" onclick="selectStorage()">Select Storage Folder</div>
         <div class="btn" style="background: #cf6679;" onclick="listFiles()">Scan Files</div>
         <div class="btn" style="background: #ff9800;" onclick="toggleNetwork()">Switch Network</div>
+    </div>
+
+    <div class="control-panel">
+        <h3>Node Control</h3>
+        <div class="btn" style="background: #4caf50;" onclick="startNode()">Start Node</div>
+        <div class="btn" style="background: #f44336;" onclick="stopNode()">Stop Node</div>
     </div>
 
     <div id="nodeStatus" class="status-box">Node: Starting...</div>
@@ -49,6 +56,18 @@
                 setTimeout(() => {
                     alert("Network Switched!");
                 }, 1000);
+            }
+        }
+
+        function startNode() {
+            if (window.SupApp) {
+                window.SupApp.startNode();
+            }
+        }
+
+        function stopNode() {
+            if (window.SupApp) {
+                window.SupApp.stopNode();
             }
         }
 

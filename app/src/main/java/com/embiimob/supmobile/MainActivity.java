@@ -60,14 +60,10 @@ public class MainActivity extends Activity {
 
         if (savedUri != null) {
             storageUri = Uri.parse(savedUri);
-            if (storageUri.getPath() != null && storageUri.getPath().contains(":")) {
-                String[] parts = storageUri.getPath().split(":");
-                if (parts.length > 1) {
-                    customStorageDir = new File(Environment.getExternalStorageDirectory(), parts[1]);
-                }
-            }
+            resolveStoragePath(storageUri);
         }
 
+        // Auto-start is now optional, user can control via UI
         startBitcoinNode();
 
         webView = new WebView(this);
@@ -84,9 +80,50 @@ public class MainActivity extends Activity {
         webView.loadUrl("file:///android_asset/dashboard.html");
     }
 
-    private void startBitcoinNode() {
+    // Helper to resolve physical path from SAF URI
+    private void resolveStoragePath(Uri uri) {
+        try {
+            String path = uri.getPath();
+            // Expected format: /tree/primary:Sup or /tree/5D51-1410:Sup
+            if (path != null && path.contains(":")) {
+                String[] parts = path.split(":");
+                if (parts.length > 1) {
+                    String volumeId = parts[0].substring(parts[0].lastIndexOf("/") + 1);
+                    String folderPath = parts[1];
+
+                    if ("primary".equalsIgnoreCase(volumeId)) {
+                        customStorageDir = new File(Environment.getExternalStorageDirectory(), folderPath);
+                    } else {
+                        // Handle External Volume (e.g., 5D51-1410)
+                        File storageRoot = new File("/storage/" + volumeId);
+                        if (storageRoot.exists()) {
+                            customStorageDir = new File(storageRoot, folderPath);
+                        } else {
+                            // Fallback attempts
+                             customStorageDir = new File("/mnt/media_rw/" + volumeId, folderPath);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void stopBitcoinNode() {
         if (peerGroup != null && peerGroup.isRunning()) {
             peerGroup.stop();
+            peerGroup = null;
+            try {
+                blockStore.close();
+            } catch (Exception e) {}
+            runOnUiThread(() -> Toast.makeText(this, "Node Stopped.", Toast.LENGTH_SHORT).show());
+        }
+    }
+
+    private void startBitcoinNode() {
+        if (peerGroup != null && peerGroup.isRunning()) {
+            return; // Already running
         }
 
         new Thread(() -> {
@@ -94,7 +131,7 @@ public class MainActivity extends Activity {
                 // Select Network
                 params = isTestnet ? TestNet3Params.get() : MainNetParams.get();
 
-                // Smart Path Logic: Look for standard Bitcoin Core folders
+                // Smart Path Logic
                 File chainFile = null;
                 if (customStorageDir != null && customStorageDir.exists()) {
                     // Check logic: Sup/bitcoin/testnet3 or Sup/bitcoin
@@ -106,7 +143,6 @@ public class MainActivity extends Activity {
                          }
                     }
 
-                    // Fallback to root of selected folder if structure not found
                     if (chainFile == null) {
                         chainFile = new File(customStorageDir, "sup_mobile.spvchain");
                     }
@@ -114,10 +150,8 @@ public class MainActivity extends Activity {
                     chainFile = new File(getExternalFilesDir(null), "sup_mobile.spvchain");
                 }
 
-                // Initialize Wallet (In-Memory for prototype, should persist in real app)
+                // Wallet setup
                 wallet = new Wallet(params);
-
-                // Add Listener for Watch List / Auto-Pinning
                 wallet.addCoinsReceivedEventListener(new WalletCoinsReceivedEventListener() {
                     @Override
                     public void onCoinsReceived(Wallet w, Transaction tx, Coin prevBalance, Coin newBalance) {
@@ -175,15 +209,11 @@ public class MainActivity extends Activity {
                 editor.putString("storage_uri", storageUri.toString());
                 editor.commit();
 
-                String path = storageUri.getPath();
-                if (path.contains(":")) {
-                    String[] parts = path.split(":");
-                    if (parts.length > 1) {
-                         customStorageDir = new File(Environment.getExternalStorageDirectory(), parts[1]);
-                    }
-                }
+                resolveStoragePath(storageUri);
+
                 Toast.makeText(this, "Storage Selected. Restarting Node...", Toast.LENGTH_SHORT).show();
-                startBitcoinNode(); // Restart with new storage
+                stopBitcoinNode();
+                startBitcoinNode();
                 webView.reload();
             }
         }
@@ -203,7 +233,18 @@ public class MainActivity extends Activity {
         }
 
         @JavascriptInterface
+        public void startNode() {
+            startBitcoinNode();
+        }
+
+        @JavascriptInterface
+        public void stopNode() {
+            stopBitcoinNode();
+        }
+
+        @JavascriptInterface
         public void toggleNetwork() {
+            stopBitcoinNode();
             isTestnet = !isTestnet;
             SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, 0).edit();
             editor.putBoolean("is_testnet", isTestnet);
@@ -218,17 +259,18 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getStoragePath() {
+            if (customStorageDir != null) return customStorageDir.getAbsolutePath();
             if (storageUri != null) return storageUri.toString();
             return null;
         }
 
         @JavascriptInterface
         public String getNodeStatus() {
-            if (peerGroup == null) return "Initializing...";
+            if (peerGroup == null) return "Stopped";
             if (peerGroup.isRunning()) {
                 return (isTestnet?"[TEST]":"[MAIN]") + " Peers: " + peerGroup.numConnectedPeers() + ". Height: " + blockChain.getBestChainHeight();
             }
-            return "Stopped";
+            return "Starting...";
         }
 
         @JavascriptInterface
