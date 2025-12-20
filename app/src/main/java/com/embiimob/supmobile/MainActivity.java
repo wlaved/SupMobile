@@ -3,17 +3,20 @@ package com.embiimob.supmobile;
 import android.app.Activity;
 import android.content.Intent;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.Settings;
+import android.content.SharedPreferences;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
-import android.os.Environment;
-import android.content.SharedPreferences;
+
 import androidx.documentfile.provider.DocumentFile;
+
 import java.io.File;
-import java.util.concurrent.TimeUnit;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -24,12 +27,9 @@ import org.bitcoinj.params.MainNetParams;
 import org.bitcoinj.script.Script;
 import org.bitcoinj.script.ScriptBuilder;
 import org.bitcoinj.wallet.Wallet;
-import org.bitcoinj.wallet.WalletTransaction;
 import org.bitcoinj.wallet.listeners.WalletCoinsReceivedEventListener;
 import org.bitcoinj.store.BlockStore;
 import org.bitcoinj.store.SPVBlockStore;
-import org.bitcoinj.core.BlockChain;
-import org.bitcoinj.core.PeerGroup;
 import org.bitcoinj.net.discovery.DnsDiscovery;
 
 public class MainActivity extends Activity {
@@ -54,6 +54,16 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        // Check for All Files Access (Android 11+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                Toast.makeText(this, "Please allow 'All Files Access' for Hybrid Storage", Toast.LENGTH_LONG).show();
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+            }
+        }
+
         SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
         String manualPath = settings.getString("manual_storage_path", null);
         String savedUri = settings.getString("storage_uri", null);
@@ -62,17 +72,14 @@ public class MainActivity extends Activity {
         // Priority: Manual Path > SAF URI
         if (manualPath != null) {
             File manualDir = new File(manualPath);
-            if (manualDir.exists() && manualDir.isDirectory()) {
-                customStorageDir = manualDir;
-            }
+            // We don't strictly check exists() here because the USB drive might not be mounted yet
+            customStorageDir = manualDir;
         }
 
         if (customStorageDir == null && savedUri != null) {
             storageUri = Uri.parse(savedUri);
             resolveStoragePath(storageUri);
         }
-
-        startBitcoinNode();
 
         webView = new WebView(this);
         setContentView(webView);
@@ -82,13 +89,27 @@ public class MainActivity extends Activity {
         webSettings.setDomStorageEnabled(true);
         webSettings.setAllowFileAccess(true);
         webSettings.setAllowContentAccess(true);
+        // Important for accessing local assets/content via JS
+        webSettings.setAllowFileAccessFromFileURLs(true);
+        webSettings.setAllowUniversalAccessFromFileURLs(true);
 
         webView.addJavascriptInterface(new SupJSInterface(), "SupApp");
         webView.setWebViewClient(new WebViewClient());
         webView.loadUrl("file:///android_asset/dashboard.html");
+
+        // Auto-start if we have a valid configuration
+        if (customStorageDir != null || storageUri != null) {
+            startBitcoinNode();
+        }
     }
 
-    // Helper to resolve physical path from SAF URI
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        stopBitcoinNode();
+    }
+
+    // Helper to resolve physical path from SAF URI (Best Effort)
     private void resolveStoragePath(Uri uri) {
         try {
             String path = uri.getPath();
@@ -107,7 +128,7 @@ public class MainActivity extends Activity {
                         if (storageRoot.exists()) {
                             customStorageDir = new File(storageRoot, folderPath);
                         } else {
-                            // Fallback attempts
+                            // Fallback attempts for /mnt/media_rw
                              customStorageDir = new File("/mnt/media_rw/" + volumeId, folderPath);
                         }
                     }
@@ -119,14 +140,16 @@ public class MainActivity extends Activity {
     }
 
     private void stopBitcoinNode() {
-        if (peerGroup != null && peerGroup.isRunning()) {
-            peerGroup.stop();
-            peerGroup = null;
-            try {
-                blockStore.close();
-            } catch (Exception e) {}
-            runOnUiThread(() -> Toast.makeText(this, "Node Stopped.", Toast.LENGTH_SHORT).show());
-        }
+        new Thread(() -> {
+            if (peerGroup != null && peerGroup.isRunning()) {
+                peerGroup.stop();
+                peerGroup = null;
+                try {
+                    if (blockStore != null) blockStore.close();
+                } catch (Exception e) {}
+                runOnUiThread(() -> Toast.makeText(this, "Node Stopped.", Toast.LENGTH_SHORT).show());
+            }
+        }).start();
     }
 
     private void startBitcoinNode() {
@@ -141,31 +164,48 @@ public class MainActivity extends Activity {
 
                 // Smart Path Logic
                 File chainFile = null;
-                if (customStorageDir != null && customStorageDir.exists()) {
-                    // Check logic: Sup/bitcoin/testnet3 or Sup/bitcoin
-                    File bitcoinDir = new File(customStorageDir, "bitcoin");
-                    if (bitcoinDir.exists()) {
-                         File netDir = isTestnet ? new File(bitcoinDir, "testnet3") : bitcoinDir;
-                         if (netDir.exists()) {
-                             chainFile = new File(netDir, "sup_mobile.spvchain");
-                         }
+
+                // 1. Try Custom Storage (USB/SD)
+                if (customStorageDir != null) {
+                    if (!customStorageDir.exists()) {
+                         // Attempt to create if we have permission
+                         customStorageDir.mkdirs();
                     }
 
-                    if (chainFile == null) {
-                        chainFile = new File(customStorageDir, "sup_mobile.spvchain");
+                    if (customStorageDir.exists()) {
+                        File bitcoinDir = new File(customStorageDir, "bitcoin");
+                        if (bitcoinDir.exists()) {
+                             File netDir = isTestnet ? new File(bitcoinDir, "testnet3") : bitcoinDir;
+                             // Look for standard core headers first
+                             if (new File(netDir, "headers.mweb").exists()) {
+                                 // Note: bitcoinj can't read Core's headers directly easily,
+                                 // but we place our spvchain here to share the folder structure.
+                                 chainFile = new File(netDir, "sup_mobile.spvchain");
+                             }
+                        }
+                        if (chainFile == null) {
+                            chainFile = new File(customStorageDir, "sup_mobile.spvchain");
+                        }
                     }
-                } else {
+                }
+
+                // 2. Fallback to Internal App Storage
+                if (chainFile == null) {
                     chainFile = new File(getExternalFilesDir(null), "sup_mobile.spvchain");
                 }
 
+                final String finalPath = chainFile.getAbsolutePath();
+
                 // Wallet setup
-                wallet = new Wallet(params);
-                wallet.addCoinsReceivedEventListener(new WalletCoinsReceivedEventListener() {
-                    @Override
-                    public void onCoinsReceived(Wallet w, Transaction tx, Coin prevBalance, Coin newBalance) {
-                        checkForSupContent(tx);
-                    }
-                });
+                File walletFile = new File(chainFile.getParent(), isTestnet ? "sup_testnet.wallet" : "sup.wallet");
+                if (walletFile.exists()) {
+                    wallet = Wallet.loadFromFile(walletFile, params);
+                } else {
+                    wallet = new Wallet(params);
+                    wallet.saveToFile(walletFile);
+                }
+
+                wallet.addCoinsReceivedEventListener((w, tx, prevBalance, newBalance) -> checkForSupContent(tx));
 
                 blockStore = new SPVBlockStore(params, chainFile);
                 blockChain = new BlockChain(params, wallet, blockStore);
@@ -177,7 +217,6 @@ public class MainActivity extends Activity {
                 peerGroup.startAsync();
                 peerGroup.startBlockChainDownload(null);
 
-                final String finalPath = chainFile.getAbsolutePath();
                 runOnUiThread(() -> Toast.makeText(this, "Node Started (" + (isTestnet?"Testnet":"Mainnet") + ") @ " + finalPath, Toast.LENGTH_LONG).show());
 
             } catch (Exception e) {
@@ -192,11 +231,14 @@ public class MainActivity extends Activity {
             for (TransactionOutput out : tx.getOutputs()) {
                 Script script = out.getScriptPubKey();
                 if (script.isOpReturn()) {
-                    String data = new String(script.getChunks().get(1).data);
-                    if (data.contains("IPFS:")) {
-                        String ipfsHash = data.substring(data.indexOf("IPFS:") + 5).trim();
-                        new SupJSInterface().pinIpfs(ipfsHash);
-                        runOnUiThread(() -> Toast.makeText(this, "Auto-Pinning: " + ipfsHash, Toast.LENGTH_SHORT).show());
+                    // Safety check for chunks
+                    if (script.getChunks().size() > 1 && script.getChunks().get(1).data != null) {
+                        String data = new String(script.getChunks().get(1).data);
+                        if (data.contains("IPFS:")) {
+                            String ipfsHash = data.substring(data.indexOf("IPFS:") + 5).trim();
+                            new SupJSInterface().pinIpfs(ipfsHash);
+                            runOnUiThread(() -> Toast.makeText(this, "Auto-Pinning: " + ipfsHash, Toast.LENGTH_SHORT).show());
+                        }
                     }
                 }
             }
@@ -244,20 +286,23 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void setManualStoragePath(String path) {
             File dir = new File(path);
-            if (dir.exists() && dir.isDirectory()) {
-                customStorageDir = dir;
 
-                SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, 0).edit();
-                editor.putString("manual_storage_path", path);
-                editor.remove("storage_uri"); // Clear URI preference to favor manual
-                editor.commit();
-
-                Toast.makeText(MainActivity.this, "Manual Path Set. Restarting Node...", Toast.LENGTH_SHORT).show();
-                stopBitcoinNode();
-                startBitcoinNode();
-            } else {
-                Toast.makeText(MainActivity.this, "Invalid Path: Directory does not exist", Toast.LENGTH_LONG).show();
+            // On Android 11+ with MANAGE_EXTERNAL_STORAGE, we can just check if we can write
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                 Toast.makeText(MainActivity.this, "Requires 'All Files Access' permission", Toast.LENGTH_LONG).show();
+                 return;
             }
+
+            customStorageDir = dir;
+
+            SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, 0).edit();
+            editor.putString("manual_storage_path", path);
+            editor.remove("storage_uri");
+            editor.commit();
+
+            Toast.makeText(MainActivity.this, "Manual Path Set. Restarting Node...", Toast.LENGTH_SHORT).show();
+            stopBitcoinNode();
+            startBitcoinNode();
         }
 
         @JavascriptInterface
@@ -289,7 +334,7 @@ public class MainActivity extends Activity {
         public String getStoragePath() {
             if (customStorageDir != null) return customStorageDir.getAbsolutePath();
             if (storageUri != null) return storageUri.toString();
-            return null;
+            return "Internal Storage";
         }
 
         @JavascriptInterface
@@ -306,6 +351,7 @@ public class MainActivity extends Activity {
             try {
                 Address addr = Address.fromString(params, address);
                 wallet.addWatchedAddress(addr);
+                wallet.saveToFile(new File(wallet.getFile().getAbsolutePath()));
                 Toast.makeText(MainActivity.this, "Watching: " + address, Toast.LENGTH_SHORT).show();
             } catch (Exception e) {
                 Toast.makeText(MainActivity.this, "Invalid Address: " + address, Toast.LENGTH_SHORT).show();
@@ -316,6 +362,7 @@ public class MainActivity extends Activity {
         public String pinIpfs(String hash) {
             new Thread(() -> {
                 try {
+                    // Assumes IPFS is running in Termux at port 5001
                     URL url = new URL("http://127.0.0.1:5001/api/v0/pin/add?arg=" + hash);
                     HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                     conn.setRequestMethod("POST");
@@ -330,14 +377,13 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String getWalletAddress() {
-            return wallet.currentReceiveAddress().toString();
+            return wallet != null ? wallet.currentReceiveAddress().toString() : "No Wallet Loaded";
         }
 
         @JavascriptInterface
         public String mint(String data) {
             try {
                 String payload = "SUP01" + data;
-                Script opReturnScript = ScriptBuilder.createOpReturnScript(payload.getBytes());
                 return "Transaction Constructed: " + payload;
             } catch (Exception e) {
                 return "Error: " + e.getMessage();
@@ -346,29 +392,9 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String listFiles(String subPath) {
-            // First Priority: Custom Storage Dir (Manual or Resolved URI)
             if (customStorageDir != null && customStorageDir.exists()) {
                 return listFilesNative(customStorageDir);
             }
-
-            // Fallback: URI (if resolved failed but URI exists - rare case for DocumentFile)
-            if (storageUri != null) {
-                try {
-                    DocumentFile pickedDir = DocumentFile.fromTreeUri(MainActivity.this, storageUri);
-                    if (pickedDir != null && pickedDir.isDirectory()) {
-                        DocumentFile[] files = pickedDir.listFiles();
-                        StringBuilder json = new StringBuilder("[");
-                        for (int i = 0; i < files.length; i++) {
-                            json.append("\"").append(files[i].getName()).append("\"");
-                            if (i < files.length - 1) json.append(",");
-                        }
-                        json.append("]");
-                        return json.toString();
-                    }
-                } catch (Exception e) { }
-            }
-
-            // Last Resort: External Storage Root
             return listFilesNative(Environment.getExternalStorageDirectory());
         }
 
