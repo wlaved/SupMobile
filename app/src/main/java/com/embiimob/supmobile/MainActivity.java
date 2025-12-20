@@ -176,10 +176,8 @@ public class MainActivity extends Activity {
                         File bitcoinDir = new File(customStorageDir, "bitcoin");
                         if (bitcoinDir.exists()) {
                              File netDir = isTestnet ? new File(bitcoinDir, "testnet3") : bitcoinDir;
-                             // Look for standard core headers first
-                             if (new File(netDir, "headers.mweb").exists()) {
-                                 // Note: bitcoinj can't read Core's headers directly easily,
-                                 // but we place our spvchain here to share the folder structure.
+                             // Relaxed check: If directory exists, use it.
+                             if (netDir.exists() && netDir.isDirectory()) {
                                  chainFile = new File(netDir, "sup_mobile.spvchain");
                              }
                         }
