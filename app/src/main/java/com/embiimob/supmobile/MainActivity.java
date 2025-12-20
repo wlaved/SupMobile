@@ -55,15 +55,23 @@ public class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
 
         SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
+        String manualPath = settings.getString("manual_storage_path", null);
         String savedUri = settings.getString("storage_uri", null);
         isTestnet = settings.getBoolean("is_testnet", true);
 
-        if (savedUri != null) {
+        // Priority: Manual Path > SAF URI
+        if (manualPath != null) {
+            File manualDir = new File(manualPath);
+            if (manualDir.exists() && manualDir.isDirectory()) {
+                customStorageDir = manualDir;
+            }
+        }
+
+        if (customStorageDir == null && savedUri != null) {
             storageUri = Uri.parse(savedUri);
             resolveStoragePath(storageUri);
         }
 
-        // Auto-start is now optional, user can control via UI
         startBitcoinNode();
 
         webView = new WebView(this);
@@ -207,6 +215,7 @@ public class MainActivity extends Activity {
 
                 SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, 0).edit();
                 editor.putString("storage_uri", storageUri.toString());
+                editor.remove("manual_storage_path"); // Clear manual override
                 editor.commit();
 
                 resolveStoragePath(storageUri);
@@ -230,6 +239,25 @@ public class MainActivity extends Activity {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
             startActivityForResult(intent, REQUEST_CODE_OPEN_DIR);
+        }
+
+        @JavascriptInterface
+        public void setManualStoragePath(String path) {
+            File dir = new File(path);
+            if (dir.exists() && dir.isDirectory()) {
+                customStorageDir = dir;
+
+                SharedPreferences.Editor editor = getSharedPreferences(PREFS_NAME, 0).edit();
+                editor.putString("manual_storage_path", path);
+                editor.remove("storage_uri"); // Clear URI preference to favor manual
+                editor.commit();
+
+                Toast.makeText(MainActivity.this, "Manual Path Set. Restarting Node...", Toast.LENGTH_SHORT).show();
+                stopBitcoinNode();
+                startBitcoinNode();
+            } else {
+                Toast.makeText(MainActivity.this, "Invalid Path: Directory does not exist", Toast.LENGTH_LONG).show();
+            }
         }
 
         @JavascriptInterface
@@ -318,25 +346,30 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public String listFiles(String subPath) {
-            if (storageUri == null) {
-                 File dir = Environment.getExternalStorageDirectory();
-                 return listFilesNative(dir);
+            // First Priority: Custom Storage Dir (Manual or Resolved URI)
+            if (customStorageDir != null && customStorageDir.exists()) {
+                return listFilesNative(customStorageDir);
             }
-            try {
-                DocumentFile pickedDir = DocumentFile.fromTreeUri(MainActivity.this, storageUri);
-                if (pickedDir == null || !pickedDir.isDirectory()) return "[]";
 
-                DocumentFile[] files = pickedDir.listFiles();
-                StringBuilder json = new StringBuilder("[");
-                for (int i = 0; i < files.length; i++) {
-                    json.append("\"").append(files[i].getName()).append("\"");
-                    if (i < files.length - 1) json.append(",");
-                }
-                json.append("]");
-                return json.toString();
-            } catch (Exception e) {
-                return "[\"Error: " + e.getMessage() + "\"]";
+            // Fallback: URI (if resolved failed but URI exists - rare case for DocumentFile)
+            if (storageUri != null) {
+                try {
+                    DocumentFile pickedDir = DocumentFile.fromTreeUri(MainActivity.this, storageUri);
+                    if (pickedDir != null && pickedDir.isDirectory()) {
+                        DocumentFile[] files = pickedDir.listFiles();
+                        StringBuilder json = new StringBuilder("[");
+                        for (int i = 0; i < files.length; i++) {
+                            json.append("\"").append(files[i].getName()).append("\"");
+                            if (i < files.length - 1) json.append(",");
+                        }
+                        json.append("]");
+                        return json.toString();
+                    }
+                } catch (Exception e) { }
             }
+
+            // Last Resort: External Storage Root
+            return listFilesNative(Environment.getExternalStorageDirectory());
         }
 
         private String listFilesNative(File dir) {
