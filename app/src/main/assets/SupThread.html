@@ -843,6 +843,26 @@ fc;">${k}</a>`
 " : profile.CreatedDate}`;
             $("profileChanged").textContent = `Last Changed: ${isKeywordSearch ?
  "N/A" : profile.ChangeDate}`;
+
+            // Inject Watch Button if address is available
+            if (state.creatorAddress) {
+                const watchBtn = document.createElement("button");
+                watchBtn.textContent = "Monitor / Watch";
+                watchBtn.style.cssText = "background: #03dac6; color: black; border: none; padding: 5px 10px; border-radius: 5px; margin-top: 5px; cursor: pointer;";
+                watchBtn.onclick = () => {
+                    if (window.SupApp && window.SupApp.watchProfile) {
+                        window.SupApp.watchProfile(state.creatorAddress);
+                    } else {
+                        alert("Bridge not active");
+                    }
+                };
+                const profileDetails = document.querySelector(".profile-details");
+                // Remove existing watch button if any
+                const existingBtn = profileDetails.querySelector("button");
+                if (existingBtn) existingBtn.remove();
+                profileDetails.appendChild(watchBtn);
+            }
+
             $("profileSection").style.display = "flex";
             $("profileLoading").style.display = "none";
             state.creatorAddress = isKeywordSearch ? state.creatorAddress : (pro
