@@ -1305,6 +1305,28 @@ im();
                 state.abortController = null;
                 return;
             }
+
+            // --- Smart Search Logic: IPFS & TXID ---
+            if (inputUrn.toLowerCase().startsWith("ipfs:") || inputUrn.toLowerCase().startsWith("qm")) {
+                let hash = inputUrn.replace(/^ipfs[:/]+/i, "");
+                if (window.SupApp && window.SupApp.pinIpfs) {
+                    window.SupApp.pinIpfs(hash);
+                    showError("Pinning IPFS Content: " + hash);
+                } else {
+                    showError("IPFS Pinning requires SupApp Bridge");
+                }
+                state.currentSearchId = null;
+                return;
+            }
+
+            if (/^[a-fA-F0-9]{64}$/.test(inputUrn)) {
+                // It looks like a Transaction ID
+                console.log("Detected Transaction ID search. Redirecting to Object Browser...");
+                window.location.href = `index.html?tid=${inputUrn}&mainnet=${isMainnet}`;
+                return;
+            }
+            // ---------------------------------------
+
             Object.assign(state, {
                 creatorAddress: "",
                 allMessages: [],
