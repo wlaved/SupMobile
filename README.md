@@ -29,6 +29,13 @@ pkg install openjdk-17 gradle android-tools ipfs git
 
 ## How to Build
 
+**Important:** Do not run this from `/storage/downloads`. Move the folder to your Termux home directory first to avoid permission errors.
+
+```bash
+cp -r storage/downloads/SupMobile ~/SupMobile
+cd ~/SupMobile
+```
+
 1.  **Configure Environment:**
     Run the fixer script to configure Gradle to use the system's `aapt2` (crucial for Termux compatibility).
 
@@ -40,7 +47,7 @@ pkg install openjdk-17 gradle android-tools ipfs git
     Use the included wrapper script to build the debug APK.
 
     ```bash
-    ./init_sdk.sh
+    bash init_sdk.sh
     ```
 
     *   This runs `./gradlew clean assembleDebug`.
@@ -68,10 +75,12 @@ The app expects a local IPFS daemon running at `127.0.0.1:5001`.
     *   If using external storage for Bitcoin, set the "Manual Storage Path".
     *   Click "Start Node".
 
-## Permissions
+## Troubleshooting
 
-*   **Files:** The app requests `MANAGE_EXTERNAL_STORAGE` on Android 11+ to read/write the blockchain files on USB drives.
-*   **Internet:** Required for Bitcoin P2P and IPFS API.
+*   **Permission denied `./gradlew`**:
+    Run `chmod +x gradlew`. Ensure you are NOT in `/storage/emulated/0/...`. You must be in `~` (home).
+*   **AAPT2 errors**:
+    Re-run `bash fix_aapt2.sh`. Ensure `pkg install android-tools` was successful.
 
 ## Project Structure
 
