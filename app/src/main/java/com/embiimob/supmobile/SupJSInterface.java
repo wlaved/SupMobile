@@ -181,6 +181,76 @@ public class SupJSInterface {
          showToast("Minting not implemented in this demo (requires funds). Data: " + data);
     }
 
+    @JavascriptInterface
+    public void startLocalScan() {
+        new Thread(() -> {
+            try {
+                showToast("Starting Local Blockchain Scan...");
+
+                // Determine 'blocks' directory based on custom path
+                File rootDir;
+                if (customStoragePath != null) {
+                    File customRoot = new File(customStoragePath); // e.g. .../SUP
+                    if (isMainnet) {
+                        rootDir = new File(customRoot, "bitcoin");
+                    } else {
+                        rootDir = new File(new File(customRoot, "bitcoin"), "testnet3");
+                    }
+                } else {
+                    rootDir = mContext.getExternalFilesDir(null);
+                }
+
+                File blocksDir = new File(rootDir, "blocks");
+                if (!blocksDir.exists()) {
+                    showToast("No 'blocks' folder found at: " + blocksDir.getAbsolutePath());
+                    return;
+                }
+
+                BlockchainScanner scanner = new BlockchainScanner(params, blocksDir.getAbsolutePath());
+                scanner.scanForOpReturn(new BlockchainScanner.OpReturnListener() {
+                    @Override
+                    public void onOpReturnFound(String txId, byte[] data) {
+                        String hexData = bytesToHex(data);
+                        String asciiData = new String(data); // Try ASCII
+                        if (asciiData.startsWith("IPFS")) {
+                             // Bridge it!
+                             pinIpfs(asciiData.substring(5)); // Remove IPFS: prefix
+                             showToast("Found IPFS in Block! " + asciiData);
+                        } else {
+                             // Just log/toast for now
+                             // showToast("Found OP_RETURN: " + txId);
+                        }
+                    }
+
+                    @Override
+                    public void onScanComplete() {
+                        showToast("Blockchain Scan Complete!");
+                    }
+
+                    @Override
+                    public void onScanError(String error) {
+                        showToast("Scan Error: " + error);
+                    }
+                });
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                showToast("Scanner Failed: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private static final char[] HEX_ARRAY = "0123456789ABCDEF".toCharArray();
+    public static String bytesToHex(byte[] bytes) {
+        char[] hexChars = new char[bytes.length * 2];
+        for (int j = 0; j < bytes.length; j++) {
+            int v = bytes[j] & 0xFF;
+            hexChars[j * 2] = HEX_ARRAY[v >>> 4];
+            hexChars[j * 2 + 1] = HEX_ARRAY[v & 0x0F];
+        }
+        return new String(hexChars);
+    }
+
     // --- Internal Logic ---
 
     private void setupBitcoinJ() throws Exception {

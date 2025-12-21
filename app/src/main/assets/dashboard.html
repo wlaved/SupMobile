@@ -67,6 +67,7 @@
         <button onclick="requestPermissions()" style="border-color: #03dac6; color: #03dac6;">Grant App Permissions</button>
         <button onclick="startNode()">Start Node</button>
         <button onclick="stopNode()">Stop Node</button>
+        <button onclick="scanBlockchain()" style="border-color: #bb86fc; color: #bb86fc;">Scan Local Blockchain (blk*.dat)</button>
     </div>
 
     <div class="status-panel">
@@ -115,6 +116,14 @@
         function stopNode() {
             if (window.SupApp) {
                 window.SupApp.stopNode();
+            }
+        }
+
+        function scanBlockchain() {
+            if (window.SupApp) {
+                window.SupApp.startLocalScan();
+            } else {
+                alert("Bridge not active");
             }
         }
 
