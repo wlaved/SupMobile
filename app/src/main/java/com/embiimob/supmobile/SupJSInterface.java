@@ -187,7 +187,16 @@ public class SupJSInterface {
         // Determine path
         File directory;
         if (customStoragePath != null) {
-            directory = new File(customStoragePath);
+            File root = new File(customStoragePath);
+            // Smart Structure: SUP/bitcoin/testnet3
+            if (isMainnet) {
+                directory = new File(root, "bitcoin");
+            } else {
+                directory = new File(new File(root, "bitcoin"), "testnet3");
+            }
+            if (!directory.exists()) {
+                directory.mkdirs();
+            }
         } else {
             directory = mContext.getExternalFilesDir(null);
         }
