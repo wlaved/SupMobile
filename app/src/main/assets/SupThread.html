@@ -336,10 +336,8 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
     <div class="container">
         <div class="search-bar-wrapper">
             <div class="search-bar">
-                <input type="text" id="urnInput" placeholder="Enter URN (e.g., e
-mbii4u) or #keyword" />
-                <label><input type="checkbox" id="mainnetToggle" /> Mainnet</lab
-el>
+                <input type="text" id="urnInput" placeholder="Enter URN (e.g., embii4u) or #keyword" />
+                <label><input type="checkbox" id="mainnetToggle" /> Mainnet</label>
                 <button onclick="searchProfile()">Search</button>
             </div>
         </div>
@@ -359,13 +357,11 @@ el>
                     <p id="profileChanged"></p>
                     <p id="totalMessages">Total Messages: Loading...</p>
                 </div>
-                <div id="profileLoading" class="profile-loading">Loading profile
-...</div>
+                <div id="profileLoading" class="profile-loading">Loading profile...</div>
             </div>
         </div>
         <div id="messagesThread" class="messages-thread"></div>
-        <div id="loading" class="loading" style="display: none;">Loading more me
-ssages...</div>
+        <div id="loading" class="loading" style="display: none;">Loading more messages...</div>
         <div id="error" class="error" style="display: none;"></div>
     </div>
     <script>
@@ -384,10 +380,7 @@ ssages...</div>
             imageCache: new Map(),
             keywordCache: new Map(),
             fallbackImage:
-                "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg'
- width='250' height='180'><rect width='100%' height='100%' fill='%23333'/><text
-x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' fon
-t-size='14'>No Image</text></svg>",
+                "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='250' height='180'><rect width='100%' height='100%' fill='%23333'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='white' font-size='14'>No Image</text></svg>",
             currentSearchId: null,
             abortController: null
         };
@@ -431,8 +424,7 @@ t-size='14'>No Image</text></svg>",
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), timeout);
             try {
-                const response = await fetch(url, { signal: signal || controller
-.signal });
+                const response = await fetch(url, { signal: signal || controller.signal });
                 clearTimeout(timeoutId);
                 if (!response.ok) throw new Error(errorMsg);
                 return response.json();
@@ -448,25 +440,20 @@ t-size='14'>No Image</text></svg>",
 
         const fetchProfile = (urn, mainnet, signal) =>
             fetchAPI(
-                `https://p2fk.io/GetProfileByURN/${encodeURIComponent(urn)}?main
-net=${mainnet}`,
+                `https://p2fk.io/GetProfileByURN/${encodeURIComponent(urn)}?mainnet=${mainnet}`,
                 `Profile not found for URN: ${urn}`,
                 signal
             );
 
         const fetchMessages = (address, mainnet, skip, qty, signal) =>
             fetchAPI(
-                `https://p2fk.io/GetPublicMessagesByAddress/${encodeURIComponent
-(
-                    address
-                )}?skip=${skip}&qty=${qty}&mainnet=${mainnet}`,
+                `https://p2fk.io/GetPublicMessagesByAddress/${encodeURIComponent(address)}?skip=${skip}&qty=${qty}&mainnet=${mainnet}`,
                 `Messages not found for address: ${address}`,
                 signal
             );
 
         const fetchProfileByAddress = async (address, mainnet, signal) => {
-            if (!address || typeof address !== 'string' || !/^[a-zA-Z0-9]{26,35}
-$/.test(address.trim())) {
+            if (!address || typeof address !== 'string' || !/^[a-zA-Z0-9]{26,35}$/.test(address.trim())) {
                 console.warn(`Fetch aborted: Invalid address "${address}"`);
                 return null;
             }
@@ -477,8 +464,7 @@ $/.test(address.trim())) {
             }
             try {
                 const profile = await fetchAPI(
-                    `https://p2fk.io/GetProfileByAddress/${encodeURIComponent(ad
-dress)}?mainnet=${mainnet}`,
+                    `https://p2fk.io/GetProfileByAddress/${encodeURIComponent(address)}?mainnet=${mainnet}`,
                     `Profile not found for address: ${address}`,
                     signal
                 );
@@ -489,8 +475,7 @@ dress)}?mainnet=${mainnet}`,
                     console.log(`Fetch aborted for address: ${address}`);
                     return null;
                 }
-                console.error(`Error fetching profile for address "${address}":`
-, e);
+                console.error(`Error fetching profile for address "${address}":`, e);
                 return null;
             }
         };
@@ -499,8 +484,7 @@ dress)}?mainnet=${mainnet}`,
             if (!urn) return "";
             urn = urn.replace(/\\/g, "/").replace(/\s+/g, "");
             const parts = urn.split(":").pop().split("/");
-            return /^(BTC|LTC|DOG|MZC):/i.test(urn) || /^[A-Za-z0-9]+\/.+/.test(
-urn)
+            return /^(BTC|LTC|DOG|MZC):/i.test(urn) || /^[A-Za-z0-9]+\/.+/.test(urn)
                 ? `https://bitfossil.org/${parts[0]}/${parts[1] || ""}`
                 : "";
         };
@@ -522,18 +506,15 @@ urn)
                     }
                     if (["https:", "data:"].includes(parsedUrl.protocol)) {
                         return value
-                            .replace(/^http:\/\/bitfossil\.com\//i, "https://bit
-fossil.org/")
+                            .replace(/^http:\/\/bitfossil\.com\//i, "https://bitfossil.org/")
                             .replace(/^http:/i, "https:");
                     }
                 } catch (e) {
                     // Not a valid URL, proceed with other checks
                 }
                 if (lower.startsWith("ipfs") || lower.startsWith("ipfs:")) {
-                    const hashMatch = value.match(/ipfs[:/]*([a-zA-Z0-9]+)(\/[^\
-/]*)?$/i);
-                    if (hashMatch) return `https://ipfs.io/ipfs/${hashMatch[1]}`
-;
+                    const hashMatch = value.match(/ipfs[:/]*([a-zA-Z0-9]+)(\/[^\/]*)?$/i);
+                    if (hashMatch) return `https://ipfs.io/ipfs/${hashMatch[1]}`;
                     return null;
                 }
                 return /^(BTC|LTC|DOG|MZC):/i.test(value) ||
@@ -552,8 +533,7 @@ fossil.org/")
             state.imageCache.set(url, resolvedUrl);
         };
 
-        const loadImageWithTimeout = async (url, timeout = 15000, retries = 3) =
-> {
+        const loadImageWithTimeout = async (url, timeout = 15000, retries = 3) => {
             if (state.imageCache.has(url)) {
                 console.log(`Cache hit for image: ${url}`);
                 return state.imageCache.get(url);
@@ -570,8 +550,7 @@ fossil.org/")
             try {
                 const parsedUrl = new URL(url);
                 if (parsedUrl.protocol === "file:") {
-                    console.error(`Rejected file:// URL in loadImageWithTimeout:
- ${url}`);
+                    console.error(`Rejected file:// URL in loadImageWithTimeout: ${url}`);
                     cacheImage(url, state.fallbackImage);
                     return state.fallbackImage;
                 }
@@ -580,10 +559,8 @@ fossil.org/")
                     currentUrl = `${gateways[0]}${hash}`;
                 }
             } catch (e) {
-                console.warn(`Invalid URL format, treating as IPFS hash: ${url}`
-);
-                const hashMatch = url.match(/ipfs[:/]*([a-zA-Z0-9]+)(\/[^\/]*)?$
-/i);
+                console.warn(`Invalid URL format, treating as IPFS hash: ${url}`);
+                const hashMatch = url.match(/ipfs[:/]*([a-zA-Z0-9]+)(\/[^\/]*)?$/i);
                 if (hashMatch) {
                     currentUrl = `${gateways[0]}${hashMatch[1]}`;
                 } else {
@@ -594,35 +571,28 @@ fossil.org/")
             }
 
             for (let attempt = 0; attempt <= retries; attempt++) {
-                const gatewayUrl = currentUrl.includes("ipfs.io") || currentUrl.
-includes("dweb.link") || currentUrl.includes("cloudflare-ipfs.com")
-                    ? currentUrl.replace(/https:\/\/[^\/]+\/ipfs\//, gateways[at
-tempt % gateways.length])
+                const gatewayUrl = currentUrl.includes("ipfs.io") || currentUrl.includes("dweb.link") || currentUrl.includes("cloudflare-ipfs.com")
+                    ? currentUrl.replace(/https:\/\/[^\/]+\/ipfs\//, gateways[attempt % gateways.length])
                     : currentUrl;
 
                 try {
-                    console.log(`Loading image: ${gatewayUrl} (attempt ${attempt
- + 1})`);
+                    console.log(`Loading image: ${gatewayUrl} (attempt ${attempt + 1})`);
                     const img = new Image();
-                    if (!gatewayUrl.includes("bitfossil.org")) img.crossOrigin =
- "Anonymous";
+                    if (!gatewayUrl.includes("bitfossil.org")) img.crossOrigin = "Anonymous";
                     const result = await new Promise((resolve, reject) => {
                         const timer = setTimeout(() => {
-                            console.warn(`Timeout loading image: ${gatewayUrl} (
-attempt ${attempt + 1})`);
+                            console.warn(`Timeout loading image: ${gatewayUrl} (attempt ${attempt + 1})`);
                             reject(new Error("Timeout loading image"));
                         }, timeout);
                         img.onload = () => {
                             clearTimeout(timer);
-                            console.log(`Successfully loaded image: ${gatewayUrl
-}`);
+                            console.log(`Successfully loaded image: ${gatewayUrl}`);
                             cacheImage(url, gatewayUrl);
                             resolve(gatewayUrl);
                         };
                         img.onerror = () => {
                             clearTimeout(timer);
-                            console.error(`Error loading image: ${gatewayUrl} (a
-ttempt ${attempt + 1})`);
+                            console.error(`Error loading image: ${gatewayUrl} (attempt ${attempt + 1})`);
                             reject(new Error("Error loading image"));
                         };
                         img.src = gatewayUrl;
@@ -630,13 +600,11 @@ ttempt ${attempt + 1})`);
                     return result;
                 } catch (error) {
                     if (attempt === retries) {
-                        console.error(`Failed to load image after ${retries + 1}
- attempts: ${url}`);
+                        console.error(`Failed to load image after ${retries + 1} attempts: ${url}`);
                         cacheImage(url, state.fallbackImage);
                         return state.fallbackImage;
                     }
-                    await new Promise(resolve => setTimeout(resolve, 1000)); //
-Delay between retries
+                    await new Promise(resolve => setTimeout(resolve, 1000)); // Delay between retries
                 }
             }
         };
@@ -652,8 +620,7 @@ Delay between retries
                             if (mediaElement.tagName === "SOURCE") {
                                 mediaElement.src = url;
                                 mediaElement.parentElement.load();
-                                mediaElement.parentElement.style.display = "bloc
-k";
+                                mediaElement.parentElement.style.display = "block";
                             }
                             observer.unobserve(mediaElement);
                         }
@@ -672,35 +639,28 @@ k";
         const createSearchLink = (text, mainnet, isUnacknowledged = false) => {
             if (!text) return "";
             const urn = text.startsWith("@") ? text.slice(1) : text;
-            return `<span class="urn-link${isUnacknowledged ? " unacknowledged"
-: ""
-                }" data-urn="${text}" data-mainnet="${mainnet}">${urn}</span>`;
+            return `<span class="urn-link${isUnacknowledged ? " unacknowledged" : ""}" data-urn="${text}" data-mainnet="${mainnet}">${urn}</span>`;
         };
 
         const renderUrnLink = (urn, mainnet) => {
             if (!urn) return "URN: None";
             if (urn.startsWith("IPFS:") || /^ipfs[:/]+/i.test(urn)) {
-                const hash = urn.replace(/^ipfs[:/]+/i, "").split("/")[0].replac
-e(/\s+/g, "");
-                return `URN: <a href="https://ipfs.io/ipfs/${hash}" target="_bla
-nk" style="color:#bb86fc">${urn}</a>`;
+                const hash = urn.replace(/^ipfs[:/]+/i, "").split("/")[0].replace(/\s+/g, "");
+                return `URN: <a href="https://ipfs.io/ipfs/${hash}" target="_blank" style="color:#bb86fc">${urn}</a>`;
             }
             if (
                 /^(BTC|LTC|DOG|MZC):/i.test(urn) ||
                 /^[A-Za-z0-9]+\/.+/.test(urn)
             ) {
                 const parts = urn.split(":").pop().split("/");
-                return `URN: <a href="https://bitfossil.org/${parts[0]}/${parts[
-1] || ""
-                    }" target="_blank" style="color:#bb86fc">${urn}</a>`;
+                return `URN: <a href="https://bitfossil.org/${parts[0]}/${parts[1] || ""}" target="_blank" style="color:#bb86fc">${urn}</a>`;
             }
             return `URN: ${createSearchLink(urn, mainnet)}`;
         };
 
         const parseMessage = async (message, mainnet, searchId) => {
             if (state.currentSearchId !== searchId) {
-                console.log(`Aborting parseMessage for outdated search ID: ${sea
-rchId}`);
+                console.log(`Aborting parseMessage for outdated search ID: ${searchId}`);
                 return { cleanMessage: "", attachments: [], links: [] };
             }
             const attachments = [];
@@ -713,8 +673,7 @@ rchId}`);
             const attachmentMatches = message.match(/<<[^>]+>>/g) || [];
             attachmentMatches.forEach((match) => {
                 const content = match.slice(2, -2).replace(/\s+/g, "").trim();
-                if (content.match(/^-?\d+$/) || content.match(/#[\w\s#]+/) || co
-ntent.match(/^#[\w\s]+$/)) {
+                if (content.match(/^-?\d+$/) || content.match(/#[\w\s#]+/) || content.match(/^#[\w\s]+$/)) {
                     return;
                 }
                 if (/^https?:\/\//i.test(content)) {
@@ -734,26 +693,21 @@ ntent.match(/^#[\w\s]+$/)) {
             if (matches.length) {
                 for (const match of matches) {
                     if (state.currentSearchId !== searchId) {
-                        console.log(`Aborting profile fetch for outdated search
-ID: ${searchId}`);
-                        return { cleanMessage, attachments: parsedAttachments, l
-inks: parsedLinks };
+                        console.log(`Aborting profile fetch for outdated search ID: ${searchId}`);
+                        return { cleanMessage, attachments: parsedAttachments, links: parsedLinks };
                     }
                     const urn = match[1];
-                    if (!/^[a-zA-Z0-9]{26,35}$/.test(urn) && !/^[a-zA-Z0-9]+\/[a
--zA-Z0-9]+$/.test(urn)) {
+                    if (!/^[a-zA-Z0-9]{26,35}$/.test(urn) && !/^[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/.test(urn)) {
                         console.warn(`Invalid URN format: ${urn}`);
                         continue;
                     }
-                    const profile = await fetchProfileByAddress(urn, mainnet, st
-ate.abortController?.signal);
+                    const profile = await fetchProfileByAddress(urn, mainnet, state.abortController?.signal);
                     if (!profile) continue;
                     const displayName = profile
                         ? profile.DisplayName || profile.URN || urn
                         : urn;
                     const isUnacknowledged =
-                        profile && profile.Creators?.[urn] === "0001-01-01T00:00
-:00";
+                        profile && profile.Creators?.[urn] === "0001-01-01T00:00:00";
                     cleanMessage = cleanMessage.replace(
                         match[0],
                         createSearchLink(displayName, mainnet, isUnacknowledged)
@@ -766,20 +720,16 @@ ate.abortController?.signal);
                     const keyword = match[1];
                     cleanMessage = cleanMessage.replace(
                         `#${keyword}`,
-                        `<span class="keyword-link" data-keyword="${keyword}" da
-ta-mainnet="${mainnet}">#${keyword}</span>`
+                        `<span class="keyword-link" data-keyword="${keyword}" data-mainnet="${mainnet}">#${keyword}</span>`
                     );
                 }
             }
-            return { cleanMessage, attachments: parsedAttachments, links: parsed
-Links };
+            return { cleanMessage, attachments: parsedAttachments, links: parsedLinks };
         };
 
-        const displayProfile = async (profile, mainnet, isKeywordSearch = false,
- searchTerm = "", searchId) => {
+        const displayProfile = async (profile, mainnet, isKeywordSearch = false, searchTerm = "", searchId) => {
             if (state.currentSearchId !== searchId) {
-                console.log(`Aborting displayProfile for outdated search ID: ${s
-earchId}`);
+                console.log(`Aborting displayProfile for outdated search ID: ${searchId}`);
                 return;
             }
             const $ = (id) => document.getElementById(id);
@@ -803,8 +753,7 @@ earchId}`);
             loadImageWithTimeout(imageUrl)
                 .then((url) => {
                     if (state.currentSearchId !== searchId) {
-                        console.log(`Aborting profile image update for outdated
-search ID: ${searchId}`);
+                        console.log(`Aborting profile image update for outdated search ID: ${searchId}`);
                         return;
                     }
                     $("profileImage").src = url;
@@ -815,34 +764,21 @@ search ID: ${searchId}`);
                     $("profileImage").src = state.fallbackImage;
                 });
             $("profileName").textContent =
-                isKeywordSearch ? `Keyword Search: ${searchTerm}` : (profile.Dis
-playName || profile.URN || "Unknown");
-            $("profileBio").textContent = `Bio: ${isKeywordSearch ? "Keyword-der
-ived address" : (profile.Bio || "No bio available")}`;
-            $("profileLocation").textContent = `Location: ${isKeywordSearch ? "N
-/A" : (profile.Location?.quark || "Unknown")
-                }`;
+                isKeywordSearch ? `Keyword Search: ${searchTerm}` : (profile.DisplayName || profile.URN || "Unknown");
+            $("profileBio").textContent = `Bio: ${isKeywordSearch ? "Keyword-derived address" : (profile.Bio || "No bio available")}`;
+            $("profileLocation").textContent = `Location: ${isKeywordSearch ? "N/A" : (profile.Location?.quark || "Unknown")}`;
             const linksHtml = !isKeywordSearch && profile.URL
                 ? Object.entries(profile.URL || {})
                     .map(([k, v]) =>
                         v.startsWith("@")
-                            ? `<a href="#" onclick="searchProfile('${v
-                                .slice(1)
-                                .replace(/'/g, "\\'")}', ${mainnet}); event.prev
-entDefault();" style="color:#bb86fc; text-decoration:underline; cursor:pointer;"
->${v
-                                    .slice(1)
-                                    .replace(/'/g, "\\'")}</a>`
-                            : `<a href="${v}" target="_blank" style="color:#bb86
-fc;">${k}</a>`
+                            ? `<a href="#" onclick="searchProfile('${v.slice(1).replace(/'/g, "\\'")}', ${mainnet}); event.preventDefault();" style="color:#bb86fc; text-decoration:underline; cursor:pointer;">${v.slice(1).replace(/'/g, "\\'")}</a>`
+                            : `<a href="${v}" target="_blank" style="color:#bb86fc;">${k}</a>`
                     )
                     .join(" | ") || "None"
                 : "None";
             $("profileLinks").innerHTML = `Links: ${linksHtml}`;
-            $("profileCreated").textContent = `Created: ${isKeywordSearch ? "N/A
-" : profile.CreatedDate}`;
-            $("profileChanged").textContent = `Last Changed: ${isKeywordSearch ?
- "N/A" : profile.ChangeDate}`;
+            $("profileCreated").textContent = `Created: ${isKeywordSearch ? "N/A" : profile.CreatedDate}`;
+            $("profileChanged").textContent = `Last Changed: ${isKeywordSearch ? "N/A" : profile.ChangeDate}`;
 
             // Inject Watch Button if address is available
             if (state.creatorAddress) {
@@ -865,30 +801,24 @@ fc;">${k}</a>`
 
             $("profileSection").style.display = "flex";
             $("profileLoading").style.display = "none";
-            state.creatorAddress = isKeywordSearch ? state.creatorAddress : (pro
-file?.Creators?.[0] || "");
-            console.log(`Profile displayed, creatorAddress set to: ${state.creat
-orAddress}`);
+            state.creatorAddress = isKeywordSearch ? state.creatorAddress : (profile?.Creators?.[0] || "");
+            console.log(`Profile displayed, creatorAddress set to: ${state.creatorAddress}`);
             updateTotalMessages();
         };
 
-        const displayMessages = async (messages, mainnet, searchId, prepend = fa
-lse) => {
+        const displayMessages = async (messages, mainnet, searchId, prepend = false) => {
             if (state.currentSearchId !== searchId) {
-                console.log(`Aborting displayMessages for outdated search ID: ${
-searchId}`);
+                console.log(`Aborting displayMessages for outdated search ID: ${searchId}`);
                 return;
             }
             const messagesThread = document.getElementById("messagesThread");
             const messageCards = [];
             const imageElements = [];
 
-            console.log(`Displaying ${messages.length} messages, prepend=${prepe
-nd}`);
+            console.log(`Displaying ${messages.length} messages, prepend=${prepend}`);
             for (const msg of messages) {
                 if (state.displayedMessageIds.has(msg.TransactionId)) {
-                    console.log(`Skipping duplicate message, TransactionId: ${ms
-g.TransactionId}`);
+                    console.log(`Skipping duplicate message, TransactionId: ${msg.TransactionId}`);
                     continue;
                 }
                 state.displayedMessageIds.add(msg.TransactionId);
@@ -897,10 +827,8 @@ g.TransactionId}`);
                     mainnet,
                     searchId
                 );
-                const fromProfile = await fetchProfileByAddress(msg.FromAddress,
- mainnet, state.abortController?.signal);
-                const toProfile = await fetchProfileByAddress(msg.ToAddress, mai
-nnet, state.abortController?.signal);
+                const fromProfile = await fetchProfileByAddress(msg.FromAddress, mainnet, state.abortController?.signal);
+                const toProfile = await fetchProfileByAddress(msg.ToAddress, mainnet, state.abortController?.signal);
                 const fromName = fromProfile
                     ? fromProfile.DisplayName ||
                     fromProfile.URN ||
@@ -928,43 +856,30 @@ nnet, state.abortController?.signal);
                     if (urnLink) {
                         event.preventDefault();
                         const urn = urnLink.getAttribute("data-urn");
-                        const isMainnet = urnLink.getAttribute("data-mainnet") =
-== "true";
-                        console.log(`Clicked urn-link: ${urn}, mainnet: ${isMain
-net}`);
+                        const isMainnet = urnLink.getAttribute("data-mainnet") === "true";
+                        console.log(`Clicked urn-link: ${urn}, mainnet: ${isMainnet}`);
                         searchProfile(urn, isMainnet, false);
                     } else if (keywordLink) {
                         event.preventDefault();
-                        const keyword = keywordLink.getAttribute("data-keyword")
-;
-                        const isMainnet = keywordLink.getAttribute("data-mainnet
-") === "true";
-                        console.log(`Clicked keyword-link: ${keyword}, mainnet:
-${isMainnet}`);
+                        const keyword = keywordLink.getAttribute("data-keyword");
+                        const isMainnet = keywordLink.getAttribute("data-mainnet") === "true";
+                        console.log(`Clicked keyword-link: ${keyword}, mainnet: ${isMainnet}`);
                         searchProfile(`#${keyword}`, isMainnet, true);
                     }
                 });
-                const attachmentsContainer = card.querySelector(".message-attach
-ments");
+                const attachmentsContainer = card.querySelector(".message-attachments");
                 for (const { hash, filename } of attachments) {
                     const mediaElement = document.createElement("div");
                     const url = `https://ipfs.io/ipfs/${hash}`;
-                    const isImage = filename.match(/\.(jpg|jpeg|png|gif|webp)$/i
-);
+                    const isImage = filename.match(/\.(jpg|jpeg|png|gif|webp)$/i);
                     const isAudio = filename.match(/\.(mp3|wav)$/i);
                     const isVideo = filename.match(/\.(mp4)$/i);
                     if (isImage) {
-                        mediaElement.innerHTML = `<img class="media-placeholder"
- src="${state.fallbackImage}" alt="Attachment" style="display: block;">`;
+                        mediaElement.innerHTML = `<img class="media-placeholder" src="${state.fallbackImage}" alt="Attachment" style="display: block;">`;
                         const img = mediaElement.querySelector("img");
-                        imageElements.push({ img, url, hash, mediaElement, mainn
-et });
+                        imageElements.push({ img, url, hash, mediaElement, mainnet });
                     } else if (isAudio) {
-                        mediaElement.innerHTML = `<audio controls style="display
-: none;"><source data-src="${url}" data-hash="${hash}" type="${filename.match(/\
-.mp3$/i) ? "audio/mpeg" : "audio/wav"
-                            }">Your browser does not support the audio element.<
-/audio>`;
+                        mediaElement.innerHTML = `<audio controls style="display: none;"><source data-src="${url}" data-hash="${hash}" type="${filename.match(/\.mp3$/i) ? "audio/mpeg" : "audio/wav"}">Your browser does not support the audio element.</audio>`;
                         const source = mediaElement.querySelector("source");
                         const audio = source.parentElement;
                         const rect = audio.getBoundingClientRect();
@@ -976,9 +891,7 @@ et });
                             lazyLoadObserver.observe(source);
                         }
                     } else if (isVideo) {
-                        mediaElement.innerHTML = `<video controls style="display
-: none;"><source data-src="${url}" data-hash="${hash}" type="video/mp4">Your bro
-wser does not support the video element.</video>`;
+                        mediaElement.innerHTML = `<video controls style="display: none;"><source data-src="${url}" data-hash="${hash}" type="video/mp4">Your browser does not support the video element.</video>`;
                         const source = mediaElement.querySelector("source");
                         const video = source.parentElement;
                         const rect = video.getBoundingClientRect();
@@ -990,8 +903,7 @@ wser does not support the video element.</video>`;
                             lazyLoadObserver.observe(source);
                         }
                     } else {
-                        mediaElement.innerHTML = `<div class="media-error">${ren
-derUrnLink(
+                        mediaElement.innerHTML = `<div class="media-error">${renderUrnLink(
                             `IPFS:${hash}`,
                             mainnet
                         )}</div>`;
@@ -1009,17 +921,14 @@ derUrnLink(
                 messageCards.push(card);
             }
 
-            console.log(`Appending ${messageCards.length} message cards to threa
-d, prepend=${prepend}`);
+            console.log(`Appending ${messageCards.length} message cards to thread, prepend=${prepend}`);
             if (prepend) {
-                messageCards.reverse().forEach(card => messagesThread.prepend(ca
-rd));
+                messageCards.reverse().forEach(card => messagesThread.prepend(card));
             } else {
                 messageCards.forEach(card => messagesThread.appendChild(card));
             }
 
-            for (const { img, url, hash, mediaElement, mainnet } of imageElement
-s) {
+            for (const { img, url, hash, mediaElement, mainnet } of imageElements) {
                 console.log(`Processing image: ${url}`);
                 await loadImageWithTimeout(url)
                     .then((resolvedUrl) => {
@@ -1030,8 +939,7 @@ s) {
                     })
                     .catch(() => {
                         console.error(`Failed to load image: ${url}`);
-                        mediaElement.innerHTML = `<div class="media-error">Faile
-d to load: ${renderUrnLink(
+                        mediaElement.innerHTML = `<div class="media-error">Failed to load: ${renderUrnLink(
                             `IPFS:${hash}`,
                             mainnet
                         )}</div>`;
@@ -1043,22 +951,19 @@ d to load: ${renderUrnLink(
 
         const loadMessages = async (mainnet, prepend = false, searchId) => {
             if (state.isLoading || state.currentSearchId !== searchId) {
-                console.log(`Aborting loadMessages: isLoading=${state.isLoading}
-, searchId=${searchId}, currentSearchId=${state.currentSearchId}`);
+                console.log(`Aborting loadMessages: isLoading=${state.isLoading}, searchId=${searchId}, currentSearchId=${state.currentSearchId}`);
                 state.isLoading = false;
                 console.log(`Reset isLoading to false due to abort`);
                 return;
             }
             state.isLoading = true;
-            console.log(`Setting isLoading to true for loadMessages, prepend=${p
-repend}`);
+            console.log(`Setting isLoading to true for loadMessages, prepend=${prepend}`);
             const $ = (id) => document.getElementById(id);
             $("loading").style.display = "block";
             $("error").style.display = "none";
             try {
                 if (!state.allMessages.length && state.creatorAddress) {
-                    console.log(`Initial fetch for messages, address: ${state.cr
-eatorAddress}, mainnet: ${mainnet}`);
+                    console.log(`Initial fetch for messages, address: ${state.creatorAddress}, mainnet: ${mainnet}`);
                     const messages = await fetchMessages(
                         state.creatorAddress,
                         mainnet,
@@ -1067,50 +972,40 @@ eatorAddress}, mainnet: ${mainnet}`);
                         state.abortController?.signal
                     );
                     if (state.currentSearchId !== searchId) {
-                        console.log(`Aborting initial message processing for out
-dated search ID: ${searchId}`);
+                        console.log(`Aborting initial message processing for outdated search ID: ${searchId}`);
                         state.isLoading = false;
-                        console.log(`Setting isLoading to false due to outdated
-search ID`);
+                        console.log(`Setting isLoading to false due to outdated search ID`);
                         return;
                     }
                     state.allMessages = messages || [];
-                    console.log(`Fetched ${state.allMessages.length} messages in
-itially`);
+                    console.log(`Fetched ${state.allMessages.length} messages initially`);
                     state.allMessages.sort(
                         (a, b) => new Date(b.BlockDate) - new Date(a.BlockDate)
                     );
                     state.totalMessages = state.allMessages.length;
                     if (!state.totalMessages) {
-                        console.log(`No messages found for address: ${state.crea
-torAddress}`);
+                        console.log(`No messages found for address: ${state.creatorAddress}`);
                         $("loading").style.display = "none";
                         $("messagesThread").innerHTML =
                             '<div class="loading">No messages found.</div>';
                         state.isLoading = false;
-                        console.log(`Setting isLoading to false due to no messag
-es`);
+                        console.log(`Setting isLoading to false due to no messages`);
                         setTimeout(() => {
-                            console.log(`Retrying initial loadMessages after ${s
-tate.retryDelay}ms`);
+                            console.log(`Retrying initial loadMessages after ${state.retryDelay}ms`);
                             loadMessages(mainnet, false, searchId);
                         }, state.retryDelay);
                         return;
                     }
                     try {
-                        console.log(`Caching ${state.allMessages.length} message
-s for address: ${state.creatorAddress}`);
-                        cacheMessages(state.creatorAddress, mainnet, state.allMe
-ssages);
+                        console.log(`Caching ${state.allMessages.length} messages for address: ${state.creatorAddress}`);
+                        cacheMessages(state.creatorAddress, mainnet, state.allMessages);
                     } catch (e) {
-                        console.error(`Failed to cache messages : ${e.message}`)
-;
+                        console.error(`Failed to cache messages : ${e.message}`);
                     }
                     state.retryDelay = 2000;
                 }
                 if (prepend) {
-                    console.log(`Refresh triggered for address: ${state.creatorA
-ddress}, mainnet: ${mainnet}`);
+                    console.log(`Refresh triggered for address: ${state.creatorAddress}, mainnet: ${mainnet}`);
                     const newMessages = await fetchMessages(
                         state.creatorAddress,
                         mainnet,
@@ -1119,61 +1014,45 @@ ddress}, mainnet: ${mainnet}`);
                         state.abortController?.signal
                     );
                     if (state.currentSearchId !== searchId) {
-                        console.log(`Aborting refresh processing for outdated se
-arch ID: ${searchId}`);
+                        console.log(`Aborting refresh processing for outdated search ID: ${searchId}`);
                         state.isLoading = false;
-                        console.log(`Setting isLoading to false due to outdated
-search ID in refresh`);
+                        console.log(`Setting isLoading to false due to outdated search ID in refresh`);
                         return;
                     }
-                    console.log(`Fetched ${newMessages.length} messages from p2f
-k.io`);
+                    console.log(`Fetched ${newMessages.length} messages from p2fk.io`);
                     newMessages.sort(
                         (a, b) => new Date(b.BlockDate) - new Date(a.BlockDate)
                     );
-                    const newIds = new Set(newMessages.map((m) => m.TransactionI
-d));
-                    const existingIds = new Set(state.allMessages.map((m) => m.T
-ransactionId));
+                    const newIds = new Set(newMessages.map((m) => m.TransactionId));
+                    const existingIds = new Set(state.allMessages.map((m) => m.TransactionId));
                     const additionalMessages = newMessages.filter(
                         (m) => !existingIds.has(m.TransactionId)
                     );
-                    console.log(`Found ${additionalMessages.length} new messages
- not in cache`);
+                    console.log(`Found ${additionalMessages.length} new messages not in cache`);
                     if (additionalMessages.length) {
-                        console.log(`Prepending ${additionalMessages.length} new
- messages to thread`);
-                        state.allMessages = [...additionalMessages, ...state.all
-Messages];
+                        console.log(`Prepending ${additionalMessages.length} new messages to thread`);
+                        state.allMessages = [...additionalMessages, ...state.allMessages];
                         state.totalMessages = state.allMessages.length;
                         try {
-                            console.log(`Updating cache with ${state.allMessages
-.length} total messages`);
-                            cacheMessages(state.creatorAddress, mainnet, state.a
-llMessages);
+                            console.log(`Updating cache with ${state.allMessages.length} total messages`);
+                            cacheMessages(state.creatorAddress, mainnet, state.allMessages);
                         } catch (e) {
-                            console.error(`Failed to update cache: ${e.message}`
-);
+                            console.error(`Failed to update cache: ${e.message}`);
                         }
                         const messagesThread = $("messagesThread");
                         const scrollTop = window.scrollY;
                         const oldHeight = messagesThread.scrollHeight;
-                        console.log(`Current scroll position before prepend: ${s
-crollTop}, thread height: ${oldHeight}`);
-                        await displayMessages(additionalMessages, mainnet, searc
-hId, true);
+                        console.log(`Current scroll position before prepend: ${scrollTop}, thread height: ${oldHeight}`);
+                        await displayMessages(additionalMessages, mainnet, searchId, true);
                         if (state.currentSearchId !== searchId) {
-                            console.log(`Aborting message display for outdated s
-earch ID: ${searchId}`);
+                            console.log(`Aborting message display for outdated search ID: ${searchId}`);
                             state.isLoading = false;
-                            console.log(`Setting isLoading to false due to outda
-ted search ID in display`);
+                            console.log(`Setting isLoading to false due to outdated search ID in display`);
                             return;
                         }
                         const newHeight = messagesThread.scrollHeight;
                         const heightDiff = newHeight - oldHeight;
-                        console.log(`Restoring scroll position, new height: ${ne
-wHeight}, height diff: ${heightDiff}`);
+                        console.log(`Restoring scroll position, new height: ${newHeight}, height diff: ${heightDiff}`);
                         window.scrollTo(0, scrollTop + heightDiff);
                     } else {
                         console.log(`No new messages to prepend`);
@@ -1182,24 +1061,20 @@ wHeight}, height diff: ${heightDiff}`);
                     console.log(`Setting isLoading to false after refresh`);
                     $("loading").style.display = "none";
                     updateTotalMessages();
-                    console.log(`Refresh completed, total messages: ${state.tota
-lMessages}`);
+                    console.log(`Refresh completed, total messages: ${state.totalMessages}`);
                     return;
                 }
                 const batch = state.allMessages.slice(
                     state.skip,
                     state.skip + state.batchSize
                 );
-                console.log(`Loading batch of ${batch.length} messages, skip: ${
-state.skip}`);
+                console.log(`Loading batch of ${batch.length} messages, skip: ${state.skip}`);
                 state.hasMore = state.skip + batch.length < state.totalMessages;
                 if (!batch.length && state.totalMessages > 0) {
-                    console.log(`No more messages to load, total: ${state.totalM
-essages}`);
+                    console.log(`No more messages to load, total: ${state.totalMessages}`);
                     state.hasMore = false;
                     state.isLoading = false;
-                    console.log(`Setting isLoading to false due to no more messa
-ges`);
+                    console.log(`Setting isLoading to false due to no more messages`);
                     $("loading").style.display = "none";
                     updateTotalMessages();
                     return;
@@ -1210,19 +1085,16 @@ ges`);
                         '<div class="loading">No messages found.</div>';
                     state.hasMore = false;
                     state.isLoading = false;
-                    console.log(`Setting isLoading to false due to no messages a
-vailable`);
+                    console.log(`Setting isLoading to false due to no messages available`);
                     $("loading").style.display = "none";
                     updateTotalMessages();
                     return;
                 }
                 await displayMessages(batch, mainnet, searchId);
                 if (state.currentSearchId !== searchId) {
-                    console.log(`Aborting batch display for outdated search ID:
-${searchId}`);
+                    console.log(`Aborting batch display for outdated search ID: ${searchId}`);
                     state.isLoading = false;
-                    console.log(`Setting isLoading to false due to outdated sear
-ch ID in batch`);
+                    console.log(`Setting isLoading to false due to outdated search ID in batch`);
                     return;
                 }
                 state.skip += batch.length;
@@ -1232,8 +1104,7 @@ ch ID in batch`);
                 updateTotalMessages();
             } catch (error) {
                 if (error.name === 'AbortError') {
-                    console.log(`Messages fetch aborted for search ID: ${searchI
-d}`);
+                    console.log(`Messages fetch aborted for search ID: ${searchId}`);
                     state.isLoading = false;
                     console.log(`Setting isLoading to false due to abort`);
                     return;
@@ -1244,8 +1115,7 @@ d}`);
                 console.log(`Setting isLoading to false due to error`);
                 setTimeout(() => {
                     state.retryDelay = Math.min(state.retryDelay * 2, 30000);
-                    console.log(`Retrying loadMessages after ${state.retryDelay}
-ms`);
+                    console.log(`Retrying loadMessages after ${state.retryDelay}ms`);
                     loadMessages(mainnet, false, searchId);
                 }, state.retryDelay);
             } finally {
@@ -1273,36 +1143,30 @@ ms`);
                 return state.keywordCache.get(cacheKey);
             }
             try {
-                const url = `https://p2fk.io/GetPublicAddressByKeyword/${encodeU
-RIComponent(keyword)}?mainnet=${mainnet}`;
-                const response = await fetchAPI(url, `Failed to fetch address fo
-r keyword: ${keyword}`, signal);
+                const url = `https://p2fk.io/GetPublicAddressByKeyword/${encodeURIComponent(keyword)}?mainnet=${mainnet}`;
+                const response = await fetchAPI(url, `Failed to fetch address for keyword: ${keyword}`, signal);
                 if (!response) {
                     console.log(`No address found for keyword: ${keyword}`);
                     return null;
                 }
                 const address = response;
                 state.keywordCache.set(cacheKey, address);
-                console.log(`Cached address for keyword: ${keyword}, address: ${
-address}`);
+                console.log(`Cached address for keyword: ${keyword}, address: ${address}`);
                 return address;
             } catch (error) {
                 if (error.name === 'AbortError') {
                     console.log(`Keyword fetch aborted for: ${keyword}`);
                     return null;
                 }
-                console.error(`Error fetching keyword address: ${error.message}`
-);
+                console.error(`Error fetching keyword address: ${error.message}`);
                 throw error;
             }
         };
 
-        const searchProfile = async (urn = null, mainnet = null, isKeywordSearch
- = false) => {
+        const searchProfile = async (urn = null, mainnet = null, isKeywordSearch = false) => {
             if (state.abortController) {
                 state.abortController.abort();
-                console.log(`Aborted previous search with ID: ${state.currentSea
-rchId}`);
+                console.log(`Aborted previous search with ID: ${state.currentSearchId}`);
             }
             state.abortController = new AbortController();
             const searchId = Date.now() + Math.random().toString(36).slice(2);
@@ -1312,14 +1176,12 @@ rchId}`);
                 lazyLoadObserver.unobserve(el);
             });
 
-            const inputUrn = urn || document.getElementById("urnInput").value.tr
-im();
+            const inputUrn = urn || document.getElementById("urnInput").value.trim();
             const isMainnet =
                 mainnet !== null
                     ? mainnet
                     : document.getElementById("mainnetToggle").checked;
-            if (!inputUrn && !getQueryParam("address") && !getQueryParam("urn"))
- {
+            if (!inputUrn && !getQueryParam("address") && !getQueryParam("urn")) {
                 showError("Please enter a URN or #keyword");
                 state.currentSearchId = null;
                 state.abortController = null;
@@ -1368,66 +1230,49 @@ im();
             try {
                 let profile = null;
                 let address = null;
-                console.log(`Starting search for URN: ${inputUrn}, isKeywordSear
-ch: ${isKeywordSearch}, mainnet: ${isMainnet}`);
+                console.log(`Starting search for URN: ${inputUrn}, isKeywordSearch: ${isKeywordSearch}, mainnet: ${isMainnet}`);
                 if (isKeywordSearch || inputUrn.startsWith("#")) {
-                    const searchTerm = isKeywordSearch ? inputUrn.slice(1) : inp
-utUrn.slice(1);
-                    const keywordAddress = await getPublicAddressByKeyword(searc
-hTerm, isMainnet, state.abortController.signal);
+                    const searchTerm = isKeywordSearch ? inputUrn.slice(1) : inputUrn.slice(1);
+                    const keywordAddress = await getPublicAddressByKeyword(searchTerm, isMainnet, state.abortController.signal);
                     if (state.currentSearchId !== searchId) {
-                        console.log(`Aborting keyword search for outdated search
- ID: ${searchId}`);
+                        console.log(`Aborting keyword search for outdated search ID: ${searchId}`);
                         return;
                     }
                     if (!keywordAddress) {
-                        throw new Error(`No address found for keyword: ${searchT
-erm}`);
+                        throw new Error(`No address found for keyword: ${searchTerm}`);
                     }
-                    console.log(`Keyword search resolved address: ${keywordAddre
-ss}`);
+                    console.log(`Keyword search resolved address: ${keywordAddress}`);
                     state.creatorAddress = keywordAddress;
-                    profile = await fetchProfileByAddress(keywordAddress, isMain
-net, state.abortController.signal);
-                    await displayProfile(profile || {}, isMainnet, true, searchT
-erm, searchId);
+                    profile = await fetchProfileByAddress(keywordAddress, isMainnet, state.abortController.signal);
+                    await displayProfile(profile || {}, isMainnet, true, searchTerm, searchId);
                 } else {
-                    profile = await fetchProfile(inputUrn, isMainnet, state.abor
-tController.signal);
+                    profile = await fetchProfile(inputUrn, isMainnet, state.abortController.signal);
                     if (state.currentSearchId !== searchId) {
-                        console.log(`Aborting profile fetch for outdated search
-ID: ${searchId}`);
+                        console.log(`Aborting profile fetch for outdated search ID: ${searchId}`);
                         return;
                     }
                     if (profile && profile.Creators?.[0]) {
                         address = profile.Creators[0];
-                        console.log(`Profile found for URN: ${inputUrn}, address
-: ${address}`);
+                        console.log(`Profile found for URN: ${inputUrn}, address: ${address}`);
                     } else {
                         address = getQueryParam("address") || inputUrn;
-                        console.log(`No profile found for URN, using address: ${
-address}`);
-                        profile = await fetchProfileByAddress(address, isMainnet
-, state.abortController.signal);
+                        console.log(`No profile found for URN, using address: ${address}`);
+                        profile = await fetchProfileByAddress(address, isMainnet, state.abortController.signal);
                     }
                     state.creatorAddress = address;
                     console.log(`Set creatorAddress: ${state.creatorAddress}`);
-                    await displayProfile(profile || {}, isMainnet, false, inputU
-rn, searchId);
+                    await displayProfile(profile || {}, isMainnet, false, inputUrn, searchId);
                 }
                 if (state.currentSearchId !== searchId) {
-                    console.log(`Aborting profile display for outdated search ID
-: ${searchId}`);
+                    console.log(`Aborting profile display for outdated search ID: ${searchId}`);
                     return;
                 }
                 $("messagesThread").innerHTML = "";
                 if (!state.creatorAddress) {
-                    console.error(`No creator address set for URN: ${inputUrn}`)
-;
+                    console.error(`No creator address set for URN: ${inputUrn}`);
                     throw new Error("No creator address found for the profile");
                 }
-                console.log(`Calling loadMessages for address: ${state.creatorAd
-dress}`);
+                console.log(`Calling loadMessages for address: ${state.creatorAddress}`);
                 await loadMessages(isMainnet, false, searchId);
             } catch (error) {
                 if (error.name === 'AbortError') {
@@ -1437,8 +1282,7 @@ dress}`);
                 console.error(`Search error: ${error.message}`);
                 showError(error.message);
                 $("profileSection").style.display = "none";
-                $("messagesThread").innerHTML = '<div class="loading">No message
-s found.</div>';
+                $("messagesThread").innerHTML = '<div class="loading">No messages found.</div>';
             } finally {
                 if (state.currentSearchId === searchId) {
                     $("loading").style.display = "none";
@@ -1452,8 +1296,7 @@ s found.</div>';
 
         const searchProfileFromLink = (event, urn, mainnet) => {
             event.preventDefault();
-            console.log(`searchProfileFromLink called with urn: ${urn}, mainnet:
- ${mainnet}`);
+            console.log(`searchProfileFromLink called with urn: ${urn}, mainnet: ${mainnet}`);
             searchProfile(urn, mainnet, urn.startsWith("#"));
         };
 
@@ -1462,10 +1305,8 @@ s found.</div>';
             if ($total) {
                 const loadedMessages = state.displayedMessageIds.size;
                 const total = state.totalMessages || 0;
-                $total.textContent = total === 0 ? "Total Messages: Loading..."
-: `Total Messages: ${loadedMessages} / ${total}`;
-                console.log(`Updated total messages: ${loadedMessages} / ${total
-}`);
+                $total.textContent = total === 0 ? "Total Messages: Loading..." : `Total Messages: ${loadedMessages} / ${total}`;
+                console.log(`Updated total messages: ${loadedMessages} / ${total}`);
             }
         };
 
@@ -1481,8 +1322,7 @@ s found.</div>';
             if (urn || address) {
                 state.currentMainnet = mainnet;
                 document.getElementById("mainnetToggle").checked = mainnet;
-                console.log(`Initial load with urn: ${urn}, address: ${address},
- mainnet: ${mainnet}`);
+                console.log(`Initial load with urn: ${urn}, address: ${address}, mainnet: ${mainnet}`);
                 searchProfile(urn || null, mainnet, false);
             }
         });
@@ -1493,10 +1333,8 @@ s found.</div>';
                 !state.isLoading &&
                 state.creatorAddress
             ) {
-                console.log(`Reached top of thread, triggering refresh for addre
-ss: ${state.creatorAddress}`);
-                loadMessages(document.getElementById("mainnetToggle").checked, t
-rue, state.currentSearchId);
+                console.log(`Reached top of thread, triggering refresh for address: ${state.creatorAddress}`);
+                loadMessages(document.getElementById("mainnetToggle").checked, true, state.currentSearchId);
             }
             if (
                 window.innerHeight + window.scrollY >=
@@ -1505,14 +1343,12 @@ rue, state.currentSearchId);
                 state.hasMore
             ) {
                 console.log(`Reached bottom, loading more messages`);
-                loadMessages(document.getElementById("mainnetToggle").checked, f
-alse, state.currentSearchId);
+                loadMessages(document.getElementById("mainnetToggle").checked, false, state.currentSearchId);
             }
         });
 
         let debounceTimeout;
-        document.getElementById("urnInput").addEventListener("keypress", (e) =>
-{
+        document.getElementById("urnInput").addEventListener("keypress", (e) => {
             if (e.key === "Enter") {
                 clearTimeout(debounceTimeout);
                 debounceTimeout = setTimeout(() => {
@@ -1522,10 +1358,8 @@ alse, state.currentSearchId);
             }
         });
 
-        document.getElementById("mainnetToggle").addEventListener("change", () =
-> {
-            state.currentMainnet = document.getElementById("mainnetToggle").chec
-ked;
+        document.getElementById("mainnetToggle").addEventListener("change", () => {
+            state.currentMainnet = document.getElementById("mainnetToggle").checked;
             console.log(`Mainnet toggle changed to: ${state.currentMainnet}`);
         });
     </script>

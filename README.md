@@ -1,61 +1,80 @@
-# SupMobile
+# Sup! Mobile - Termux Edition
 
-An Android application acting as a decentralized "Sup" node, combining a Social Feed, Object Browser, and Bitcoin SPV Node.
+This is the Android mobile version of the Sup! Social Thread and Object Browser, optimized for building and running directly inside Termux.
 
 ## Features
-- **Bitcoin SPV Node**: Runs `bitcoinj` to connect to the P2P network (Testnet/Mainnet).
-- **Hybrid Storage**: Connects to a user-selected external folder (USB/SD) to read existing blockchain/IPFS data. Supports standard paths like `/mnt/media_rw/ID/Sup`.
-- **Auto-Pinning**: Monitors watched profiles for new content and automatically pins IPFS hashes to the local node.
-- **Web Interface**: Uses `SupThread.html` and `index.html` for a rich viewer experience.
 
-## Prerequisites
-- **Termux** on Android.
-- **IPFS** (running in Termux).
-- **Gradle**.
+*   **Hybrid Bridge:** Connects a WebView frontend (`SupThread.html` & `index.html`) to a native Java backend (`SupJSInterface`).
+*   **Bitcoin SPV Node:** Runs a `bitcoinj` SPV node directly on the device.
+*   **External Storage:** Supports storing the blockchain (`.spvchain`) on external USB drives (OTG).
+*   **IPFS Integration:** Automatically pins IPFS hashes found in `OP_RETURN` transactions to a local IPFS node.
+*   **Smart Search:** Detects IPFS hashes and Transaction IDs in the search bar.
 
-## Setup & Build (Termux)
+## Prerequisites (Termux)
 
-1.  **Environment Setup**:
-    Update packages and install JDK 17 (required for Gradle 8.2) and Android tools.
+You need a fully set up Termux environment with Android build tools.
+
+```bash
+# 1. Update Termux
+pkg update && pkg upgrade
+
+# 2. Install Dependencies
+pkg install openjdk-17 gradle android-tools ipfs git
+
+# 3. Setup Android SDK (if not already done)
+# Ensure ANDROID_HOME is set. If you don't have the SDK installed,
+# you might need to install 'commandlinetools' manually or use a script.
+# For this project, we provide a helper to detect standard locations.
+```
+
+## How to Build
+
+1.  **Configure Environment:**
+    Run the fixer script to configure Gradle to use the system's `aapt2` (crucial for Termux compatibility).
+
     ```bash
-    pkg update
-    pkg install openjdk-17 gradle wget tar
+    bash fix_aapt2.sh
     ```
 
-2.  **Configure Storage for IPFS**:
-    Use the path to your external drive (e.g., `5D51-1410`).
+2.  **Build the APK:**
+    Use the included wrapper script to build the debug APK.
+
     ```bash
-    echo 'export IPFS_PATH=/mnt/media_rw/5D51-1410/SUP' >> ~/.bashrc
-    source ~/.bashrc
+    ./init_sdk.sh
     ```
 
-3.  **Start IPFS Daemon**:
+    *   This runs `./gradlew clean assembleDebug`.
+    *   The output APK will be at `app/build/outputs/apk/debug/app-debug.apk`.
+
+## How to Run IPFS
+
+The app expects a local IPFS daemon running at `127.0.0.1:5001`.
+
+1.  **Initialize IPFS (if first time):**
     ```bash
-    ipfs init  # (first time only)
-    ipfs config Addresses.API /ip4/127.0.0.1/tcp/5001
-    ipfs daemon &
+    export IPFS_PATH=/storage/0000-0000/Android/media/com.termux/ipfs_data
+    ipfs init
+    ```
+    *(Replace `/storage/0000-0000/...` with your actual external storage path if desired, or just use default `~/.ipfs`)*
+
+2.  **Start Daemon:**
+    ```bash
+    ipfs daemon --enable-gc
     ```
 
-4.  **Build the APK**:
-    Make the wrapper executable and build:
-    ```bash
-    chmod +x gradlew
-    ./gradlew assembleDebug
-    ```
-    *If `gradlew` fails, use the installed gradle:*
-    ```bash
-    gradle assembleDebug
-    ```
+3.  **Configure App:**
+    *   Open the App.
+    *   Go to Dashboard.
+    *   If using external storage for Bitcoin, set the "Manual Storage Path".
+    *   Click "Start Node".
 
-5.  **Install**:
-    The APK is located at `app/build/outputs/apk/debug/app-debug.apk`.
+## Permissions
 
-## First Run & Permissions
-1.  **Grant Storage Access**: On Android 11+, the app will ask for "All Files Access". This is required to read/write to specific folders on your USB drive (`/mnt/media_rw/...`) which strict Scoped Storage would otherwise block.
-2.  **Select Storage**: Click "Select Storage Folder" and pick your `SUP` folder. Or use the "Manual Path" box if the picker is restricted.
-3.  **Start Node**: Click "Start Node" to begin syncing.
+*   **Files:** The app requests `MANAGE_EXTERNAL_STORAGE` on Android 11+ to read/write the blockchain files on USB drives.
+*   **Internet:** Required for Bitcoin P2P and IPFS API.
 
-## Usage
-- **Social Feed**: Browse Sup threads.
-- **Object Browser**: View P2FK objects.
-- **Node Status**: Check peer count and block height in the Dashboard.
+## Project Structure
+
+*   `app/src/main/assets`: HTML/JS Frontend code.
+*   `app/src/main/java`: Java Backend (Bridge, BitcoinJ).
+*   `app/build.gradle`: Project dependencies.

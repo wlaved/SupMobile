@@ -2,76 +2,107 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Sup! Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sup Dashboard</title>
     <style>
-        body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
-        .btn { display: inline-block; padding: 20px 40px; margin: 20px; background: #6200ea; color: #fff; text-decoration: none; border-radius: 10px; font-size: 1.2em; cursor: pointer;}
-        .btn:hover { background: #7c4dff; }
-        .status-box { margin-top: 20px; color: #03dac6; font-family: monospace; font-size: 1.1em; border: 1px solid #333; padding: 10px; }
-        #fileList { text-align: left; background: #1e1e1e; padding: 10px; margin: 20px auto; max-width: 80%; max-height: 200px; overflow-y: auto; border-radius: 5px; }
-        .control-panel { margin-top: 20px; padding: 10px; border: 1px dashed #444; }
-        input[type="text"] { padding: 10px; border-radius: 5px; border: 1px solid #555; background: #333; color: #fff; width: 70%; }
+        body {
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+        h1 {
+            color: #bb86fc;
+        }
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        button {
+            padding: 15px;
+            background-color: #333;
+            color: #bb86fc;
+            border: 1px solid #bb86fc;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #bb86fc;
+            color: #121212;
+        }
+        .status-panel {
+            margin-top: 30px;
+            padding: 20px;
+            background: #1e1e1e;
+            border-radius: 10px;
+            text-align: left;
+        }
+        .status-item {
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            background: #333;
+            border: 1px solid #555;
+            color: white;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
-    <h1>Sup! Mobile Dashboard</h1>
+    <h1>Sup Dashboard</h1>
 
-    <div>
-        <div class="btn" onclick="openSocial()">Social Feed</div>
-        <div class="btn" onclick="openBrowser()">Object Browser</div>
+    <div class="button-container">
+        <button onclick="window.location.href='SupThread.html'">Social Thread</button>
+        <button onclick="window.location.href='index.html'">Object Browser</button>
+        <button onclick="requestStorage()">Select Storage (USB/SD)</button>
+        <button onclick="startNode()">Start Node</button>
+        <button onclick="stopNode()">Stop Node</button>
     </div>
 
-    <div style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
-        <h3>Storage & Node</h3>
-        <div class="btn" style="background: #03dac6; color: #000;" onclick="selectStorage()">Select Storage Folder</div>
-        <div class="btn" style="background: #cf6679;" onclick="listFiles()">Scan Files</div>
-        <div class="btn" style="background: #ff9800;" onclick="toggleNetwork()">Switch Network</div>
-    </div>
+    <div class="status-panel">
+        <h3>Node Status</h3>
+        <div class="status-item">State: <span id="nodeState">Stopped</span></div>
+        <div class="status-item">Peers: <span id="peerCount">0</span></div>
+        <div class="status-item">Height: <span id="chainHeight">0</span></div>
+        <div class="status-item">Storage: <span id="storagePath">Internal</span></div>
 
-    <div class="control-panel">
-        <p>Manual Path Override (e.g. /mnt/media_rw/5D51-1410/SUP)</p>
-        <input type="text" id="manualPath" placeholder="/path/to/folder" />
-        <div class="btn" style="padding: 10px 20px; font-size: 1em;" onclick="setManualPath()">Set Path</div>
-    </div>
+        <div style="margin-top: 20px;">
+            <label>Manual Storage Path:</label>
+            <input type="text" id="manualPathInput" placeholder="/storage/XXXX-XXXX/Android/data/...">
+            <button onclick="setManualPath()" style="margin-top: 10px; width: 100%;">Set Path</button>
+        </div>
 
-    <div class="control-panel">
-        <h3>Node Control</h3>
-        <div class="btn" style="background: #4caf50;" onclick="startNode()">Start Node</div>
-        <div class="btn" style="background: #f44336;" onclick="stopNode()">Stop Node</div>
+        <div style="margin-top: 20px;">
+             <label><input type="checkbox" id="networkToggle" onchange="toggleNetwork()"> Use Mainnet</label>
+        </div>
     </div>
-
-    <div id="nodeStatus" class="status-box">Node: Starting...</div>
-    <div id="storagePath" class="status-box">Storage: None</div>
-    <div id="fileList"></div>
 
     <script>
-        function openSocial() { window.location.href = "SupThread.html"; }
-        function openBrowser() { window.location.href = "index.html"; }
+        function updateStatus() {
+            if (window.SupApp) {
+                const status = JSON.parse(window.SupApp.getNodeStatus());
+                document.getElementById('nodeState').textContent = status.running ? "Running" : "Stopped";
+                document.getElementById('peerCount').textContent = status.peers;
+                document.getElementById('chainHeight').textContent = status.height;
+                document.getElementById('storagePath').textContent = status.path;
+            }
+        }
 
-        function selectStorage() {
+        function requestStorage() {
             if (window.SupApp) {
                 window.SupApp.selectStorage();
             } else {
                 alert("Bridge not active");
-            }
-        }
-
-        function setManualPath() {
-            if (window.SupApp) {
-                var path = document.getElementById('manualPath').value;
-                if (path) {
-                    window.SupApp.setManualStoragePath(path);
-                }
-            }
-        }
-
-        function toggleNetwork() {
-            if (window.SupApp) {
-                window.SupApp.toggleNetwork();
-                // Wait a moment for restart
-                setTimeout(() => {
-                    alert("Network Switched!");
-                }, 1000);
             }
         }
 
@@ -87,41 +118,22 @@
             }
         }
 
-        function listFiles() {
+        function setManualPath() {
+            const path = document.getElementById('manualPathInput').value;
             if (window.SupApp) {
-                document.getElementById('fileList').innerText = "Scanning...";
-                var files = window.SupApp.listFiles("");
-                try {
-                    var fileArr = JSON.parse(files);
-                    var html = "<strong>Files Found: " + fileArr.length + "</strong><br/>";
-                    fileArr.forEach(f => {
-                         html += "<div>" + f + "</div>";
-                    });
-                    document.getElementById('fileList').innerHTML = html;
-                } catch(e) {
-                    document.getElementById('fileList').innerText = files;
-                }
+                window.SupApp.setManualStoragePath(path);
+                alert("Path set to: " + path);
             }
         }
 
-        // Poll Node Status
-        setInterval(() => {
-            if (window.SupApp) {
-                document.getElementById('nodeStatus').innerText = "Node: " + window.SupApp.getNodeStatus();
-            }
-        }, 2000);
-
-        // Initialize
-        if (window.SupApp) {
-            var path = window.SupApp.getStoragePath();
-            if (path) {
-                document.getElementById('storagePath').innerText = "Storage: " + path;
-            } else {
-                document.getElementById('storagePath').innerText = "Storage: Not Selected";
-            }
-        } else {
-            document.getElementById('nodeStatus').innerText = "Web Mode (No Bridge)";
+        function toggleNetwork() {
+            const isMainnet = document.getElementById('networkToggle').checked;
+            // TODO: Expose setNetwork to SupApp
+            console.log("Network switched to " + (isMainnet ? "Mainnet" : "Testnet"));
         }
+
+        // Poll for status every 2 seconds
+        setInterval(updateStatus, 2000);
     </script>
 </body>
 </html>
