@@ -154,7 +154,7 @@ public class SupJSInterface {
             return;
         }
         try {
-            Address address = Address.fromBase58(params, urnOrAddress);
+            Address address = Address.fromString(params, urnOrAddress);
             if (wallet.isWatchedScript(ScriptBuilder.createOutputScript(address))) {
                 showToast("Already watching " + urnOrAddress);
                 return;
@@ -162,10 +162,6 @@ public class SupJSInterface {
             wallet.addWatchedAddress(address);
             wallet.saveToFile(walletFile);
             showToast("Added to watch list: " + urnOrAddress);
-            // Re-filter if running?
-            if (peerGroup != null) {
-                peerGroup.resownBloomFilter();
-            }
         } catch (Exception e) {
             showToast("Invalid Address: " + e.getMessage());
         }
@@ -195,7 +191,7 @@ public class SupJSInterface {
         if (walletFile.exists()) {
             wallet = Wallet.loadFromFile(walletFile);
         } else {
-            wallet = new Wallet(params);
+            wallet = new Wallet(org.bitcoinj.core.Context.getOrCreate(params));
             wallet.saveToFile(walletFile);
         }
 
