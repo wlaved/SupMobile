@@ -191,7 +191,8 @@ public class SupJSInterface {
         if (walletFile.exists()) {
             wallet = Wallet.loadFromFile(walletFile);
         } else {
-            wallet = new Wallet(org.bitcoinj.core.Context.getOrCreate(params));
+            org.bitcoinj.core.Context ctx = org.bitcoinj.core.Context.getOrCreate(params);
+            wallet = Wallet.createDeterministic(ctx, Script.ScriptType.P2PKH);
             wallet.saveToFile(walletFile);
         }
 
