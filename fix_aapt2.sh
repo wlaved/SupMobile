@@ -19,6 +19,23 @@ echo "✅ Found aapt2 at: $AAPT2_PATH"
 
 # 3. Inject into gradle.properties
 echo "📝 Configuring Gradle to use system AAPT2..."
-echo "android.aapt2FromMavenOverride=$AAPT2_PATH" > gradle.properties
+
+# Ensure file exists
+touch gradle.properties
+
+# Check if line exists, if not append it
+if ! grep -q "android.aapt2FromMavenOverride" gradle.properties; then
+    echo "android.aapt2FromMavenOverride=$AAPT2_PATH" >> gradle.properties
+    echo "✅ Appended AAPT2 override path."
+else
+    echo "⚠️  AAPT2 override already exists in gradle.properties."
+fi
+
+# Ensure AndroidX properties exist (just in case they were deleted or file was fresh)
+if ! grep -q "android.useAndroidX" gradle.properties; then
+    echo "android.useAndroidX=true" >> gradle.properties
+    echo "android.enableJetifier=true" >> gradle.properties
+    echo "✅ Appended AndroidX flags."
+fi
 
 echo "✅ Done. You can now run 'bash init_sdk.sh'"
