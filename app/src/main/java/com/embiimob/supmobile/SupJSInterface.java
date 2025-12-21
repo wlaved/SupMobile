@@ -127,6 +127,15 @@ public class SupJSInterface {
     }
 
     @JavascriptInterface
+    public void requestPermissions() {
+        if (mContext instanceof MainActivity) {
+            ((MainActivity) mContext).requestAppPermissions();
+        } else {
+            showToast("Cannot request permissions: Invalid Context");
+        }
+    }
+
+    @JavascriptInterface
     public void pinIpfs(String hash) {
         new Thread(() -> {
             try {

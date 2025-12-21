@@ -71,9 +71,13 @@ The app expects a local IPFS daemon running at `127.0.0.1:5001`.
 
 3.  **Configure App:**
     *   Open the App.
-    *   Go to Dashboard.
+    *   **Grant Permissions:** Click "Grant App Permissions" on the Dashboard.
     *   If using external storage for Bitcoin, set the "Manual Storage Path".
     *   Click "Start Node".
+
+## Permissions
+
+*   **Files:** Use the "Grant App Permissions" button to allow access to external USB drives (required for the blockchain file).
 
 ## Troubleshooting
 
