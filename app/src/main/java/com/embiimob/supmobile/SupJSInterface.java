@@ -201,12 +201,22 @@ public class SupJSInterface {
                 }
 
                 File blocksDir = new File(rootDir, "blocks");
-                if (!blocksDir.exists()) {
-                    showToast("No 'blocks' folder found at: " + blocksDir.getAbsolutePath());
+                // Check if standard 'blocks' folder exists, otherwise try the root testnet3 folder
+                File scanTarget = blocksDir.exists() ? blocksDir : rootDir;
+
+                // Verify blk files exist
+                boolean hasBlocks = false;
+                if (scanTarget.exists() && scanTarget.isDirectory()) {
+                    File[] check = scanTarget.listFiles((d, name) -> name.startsWith("blk") && name.endsWith(".dat"));
+                    hasBlocks = check != null && check.length > 0;
+                }
+
+                if (!hasBlocks) {
+                    showToast("No blk*.dat files found in: " + scanTarget.getAbsolutePath());
                     return;
                 }
 
-                BlockchainScanner scanner = new BlockchainScanner(params, blocksDir.getAbsolutePath());
+                BlockchainScanner scanner = new BlockchainScanner(params, scanTarget.getAbsolutePath());
                 scanner.scanForOpReturn(new BlockchainScanner.OpReturnListener() {
                     @Override
                     public void onOpReturnFound(String txId, byte[] data) {
