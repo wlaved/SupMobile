@@ -61,6 +61,12 @@
 <body>
     <h1>Sup Dashboard</h1>
 
+    <div style="margin-bottom: 30px;">
+        <h3>Unified Search</h3>
+        <input type="text" id="unifiedSearchInput" placeholder="Search IPFS, URN, #Keyword, or TXID..." style="width: 80%; padding: 12px; border-radius: 20px; border: 1px solid #bb86fc; background: #333; color: white;">
+        <button onclick="doUnifiedSearch()" style="padding: 12px 20px; border-radius: 20px; margin-left: 5px;">Go</button>
+    </div>
+
     <div class="button-container">
         <button onclick="window.location.href='SupThread.html'">Social Thread</button>
         <button onclick="window.location.href='index.html'">Object Browser</button>
@@ -139,6 +145,41 @@
             const isMainnet = document.getElementById('networkToggle').checked;
             // TODO: Expose setNetwork to SupApp
             console.log("Network switched to " + (isMainnet ? "Mainnet" : "Testnet"));
+        }
+
+        function doUnifiedSearch() {
+            const input = document.getElementById('unifiedSearchInput').value.trim();
+            const isMainnet = document.getElementById('networkToggle').checked;
+
+            if (!input) return;
+
+            // 1. Check for IPFS (Qm... or ipfs://)
+            if (input.startsWith('Qm') || input.toLowerCase().startsWith('ipfs:')) {
+                if (window.SupApp) {
+                    window.SupApp.pinIpfs(input);
+                    alert("Pinning IPFS content locally...");
+                } else {
+                    alert("Bridge not ready.");
+                }
+                return;
+            }
+
+            // 2. Check for Transaction ID (64 hex chars) -> Object Browser
+            if (/^[a-fA-F0-9]{64}$/.test(input)) {
+                window.location.href = `index.html?tid=${input}&mainnet=${isMainnet}`;
+                return;
+            }
+
+            // 3. Check for Keywords (#hashtag) -> Social Thread
+            if (input.startsWith('#')) {
+                window.location.href = `SupThread.html?urn=${encodeURIComponent(input)}&mainnet=${isMainnet}`;
+                return;
+            }
+
+            // 4. Default: Treat as URN/Address -> Social Thread (Profile)
+            // But if it looks like an Object Address (maybe?), we might want index.html?
+            // For now, default to Profile search as it's the "Social" app primary function.
+            window.location.href = `SupThread.html?urn=${encodeURIComponent(input)}&mainnet=${isMainnet}`;
         }
 
         // Poll for status every 2 seconds
