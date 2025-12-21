@@ -29,8 +29,15 @@ echo "sdk.dir=$SDK_PATH" > local.properties
 echo "📄 Created local.properties"
 
 echo "🔨 Starting Build..."
-chmod +x gradlew
-./gradlew assembleDebug
+# Ensure gradlew has execute permission if it exists
+if [ -f "./gradlew" ]; then
+    chmod +x gradlew
+    ./gradlew assembleDebug
+else
+    # Fallback to system gradle
+    echo "⚠️  gradlew not found, using system gradle..."
+    gradle assembleDebug
+fi
 
 if [ -f "app/build/outputs/apk/debug/app-debug.apk" ]; then
     echo "🎉 SUCCESS! APK built at: app/build/outputs/apk/debug/app-debug.apk"
