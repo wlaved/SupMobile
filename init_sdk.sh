@@ -28,6 +28,14 @@ echo "✅ SDK Found at: $SDK_PATH"
 echo "sdk.dir=$SDK_PATH" > local.properties
 echo "📄 Created local.properties"
 
+echo "🧹 Cleaning previous build..."
+if [ -f "./gradlew" ]; then
+    chmod +x gradlew
+    ./gradlew clean
+else
+    gradle clean
+fi
+
 echo "🔨 Starting Build..."
 # Ensure gradlew has execute permission if it exists
 if [ -f "./gradlew" ]; then
