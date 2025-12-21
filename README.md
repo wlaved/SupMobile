@@ -8,7 +8,10 @@ This is the Android mobile version of the Sup! Social Thread and Object Browser,
 *   **Bitcoin SPV Node:** Runs a `bitcoinj` SPV node directly on the device.
 *   **External Storage:** Supports storing the blockchain (`.spvchain`) on external USB drives (OTG).
 *   **IPFS Integration:** Automatically pins IPFS hashes found in `OP_RETURN` transactions to a local IPFS node.
-*   **Smart Search:** Detects IPFS hashes and Transaction IDs in the search bar.
+*   **Unified Search:** A single search bar on the Dashboard automatically detects:
+    *   **IPFS Hashes:** Pins/Loads content from the `SUP/ipfs` folder.
+    *   **Transactions/Blocks:** Scans the `SUP/bitcoin/testnet3` folder or queries the Object Browser.
+    *   **Users/Keywords:** Opens the Social Thread.
 
 ## Prerequisites (Termux)
 
