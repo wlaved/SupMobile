@@ -525,7 +525,7 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                 }
                 if (lower.startsWith("ipfs") || lower.startsWith("ipfs:")) {
                     const hashMatch = value.match(/ipfs[:/]*([a-zA-Z0-9]+)(\/[^\/]*)?$/i);
-                    if (hashMatch) return `https://ipfs.io/ipfs/${hashMatch[1]}`;
+                if (hashMatch) return `http://127.0.0.1:8080/ipfs/${hashMatch[1]}`;
                     return null;
                 }
                 return /^(BTC|LTC|DOG|MZC):/i.test(value) ||
@@ -658,7 +658,7 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
             if (!urn) return "URN: None";
             if (urn.startsWith("IPFS:") || /^ipfs[:/]+/i.test(urn)) {
                 const hash = urn.replace(/^ipfs[:/]+/i, "").split("/")[0].replace(/\s+/g, "");
-                return `URN: <a href="https://ipfs.io/ipfs/${hash}" target="_blank" style="color:#bb86fc">${urn}</a>`;
+                return `URN: <a href="http://127.0.0.1:8080/ipfs/${hash}" target="_blank" style="color:#bb86fc">${urn}</a>`;
             }
             if (
                 /^(BTC|LTC|DOG|MZC):/i.test(urn) ||
@@ -882,7 +882,7 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                 const attachmentsContainer = card.querySelector(".message-attachments");
                 for (const { hash, filename } of attachments) {
                     const mediaElement = document.createElement("div");
-                    const url = `https://ipfs.io/ipfs/${hash}`;
+                    const url = `http://127.0.0.1:8080/ipfs/${hash}`;
                     const isImage = filename.match(/\.(jpg|jpeg|png|gif|webp)$/i);
                     const isAudio = filename.match(/\.(mp3|wav)$/i);
                     const isVideo = filename.match(/\.(mp4)$/i);
