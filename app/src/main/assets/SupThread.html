@@ -694,6 +694,21 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                     attachments.push(content);
                 }
             });
+
+            // --- Improved IPFS/Object Detection in raw text ---
+            // Detect "URN: IPFS:Qm..." or just "IPFS:Qm..." even if not in brackets
+            const rawIpfsMatches = cleanMessage.match(/(IPFS:|Qm)[a-zA-Z0-9]{44,}/gi);
+            if (rawIpfsMatches) {
+                rawIpfsMatches.forEach(match => {
+                    const clean = match.replace(/^IPFS:/i, "");
+                    // Avoid duplicates if already caught by attachment logic
+                    if (!attachments.includes(clean) && !attachments.includes("IPFS:"+clean)) {
+                        attachments.push("IPFS:" + clean);
+                    }
+                });
+            }
+            // ---------------------------------------------------
+
             const parsedAttachments = attachments.map((attach) => {
                 const parts = attach.split(/[\/\\]/);
                 const hash = parts[0].replace(/^IPFS:/i, "").trim();
@@ -792,11 +807,17 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
             $("profileCreated").textContent = `Created: ${isKeywordSearch ? "N/A" : profile.CreatedDate}`;
             $("profileChanged").textContent = `Last Changed: ${isKeywordSearch ? "N/A" : profile.ChangeDate}`;
 
-            // Inject Watch Button if address is available
+            // Inject Buttons
             if (state.creatorAddress) {
+                const buttonContainer = document.createElement("div");
+                buttonContainer.style.marginTop = "10px";
+                buttonContainer.style.display = "flex";
+                buttonContainer.style.gap = "10px";
+
+                // Monitor Button
                 const watchBtn = document.createElement("button");
                 watchBtn.textContent = "Monitor / Watch";
-                watchBtn.style.cssText = "background: #03dac6; color: black; border: none; padding: 5px 10px; border-radius: 5px; margin-top: 5px; cursor: pointer;";
+                watchBtn.style.cssText = "background: #03dac6; color: black; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;";
                 watchBtn.onclick = () => {
                     if (window.SupApp && window.SupApp.watchProfile) {
                         window.SupApp.watchProfile(state.creatorAddress);
@@ -804,11 +825,25 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                         alert("Bridge not active");
                     }
                 };
+
+                // View Objects Button
+                const objectsBtn = document.createElement("button");
+                objectsBtn.textContent = "View Objects";
+                objectsBtn.style.cssText = "background: #bb86fc; color: black; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer;";
+                objectsBtn.onclick = () => {
+                    window.location.href = `index.html?address=${state.creatorAddress}&mainnet=${mainnet}`;
+                };
+
+                buttonContainer.appendChild(watchBtn);
+                buttonContainer.appendChild(objectsBtn);
+
                 const profileDetails = document.querySelector(".profile-details");
-                // Remove existing watch button if any
-                const existingBtn = profileDetails.querySelector("button");
-                if (existingBtn) existingBtn.remove();
-                profileDetails.appendChild(watchBtn);
+                // Remove existing buttons container if any
+                const existingContainer = profileDetails.querySelector(".profile-actions");
+                if (existingContainer) existingContainer.remove();
+
+                buttonContainer.className = "profile-actions";
+                profileDetails.appendChild(buttonContainer);
             }
 
             $("profileSection").style.display = "flex";

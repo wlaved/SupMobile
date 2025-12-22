@@ -92,6 +92,13 @@
         </div>
     </div>
 
+    <div class="status-panel" style="text-align: left; max-height: 200px; overflow-y: auto; font-family: monospace;">
+        <h3>Live Monitor</h3>
+        <div id="liveMonitor" style="font-size: 12px; color: #03dac6;">
+            <div>Listening for events...</div>
+        </div>
+    </div>
+
     <script>
         function updateStatus() {
             if (window.SupApp) {
@@ -182,6 +189,25 @@
 
         // Poll for status every 2 seconds
         setInterval(updateStatus, 2000);
+
+        // Bridge Callback
+        window.onSupEvent = function(type, data) {
+            console.log("SupEvent: " + type + " - " + data);
+            if (type === 'live_feed') {
+                const monitor = document.getElementById('liveMonitor');
+                const entry = document.createElement('div');
+                const time = new Date().toLocaleTimeString();
+                entry.textContent = `[${time}] ${data}`;
+                entry.style.borderBottom = "1px solid #333";
+                entry.style.padding = "2px 0";
+                monitor.prepend(entry); // Newest top
+
+                // Limit history
+                if (monitor.children.length > 50) {
+                    monitor.removeChild(monitor.lastChild);
+                }
+            }
+        };
     </script>
 </body>
 </html>

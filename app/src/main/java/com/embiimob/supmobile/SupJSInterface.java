@@ -303,19 +303,39 @@ public class SupJSInterface {
         // PeerGroup
         peerGroup = new PeerGroup(params, blockChain);
         peerGroup.addWallet(wallet);
+        // Explicitly add DNS Discovery for Android/Termux environments where default might fail
+        peerGroup.addPeerDiscovery(new DnsDiscovery(params));
 
         // Listener for incoming TX
         wallet.addCoinsReceivedEventListener(new WalletCoinsReceivedEventListener() {
             @Override
             public void onCoinsReceived(Wallet w, Transaction tx, Coin prevBalance, Coin newBalance) {
+                String txId = tx.getTxId().toString();
+                notifyFrontend("live_feed", "TX Received: " + txId + " | Amt: " + tx.getValue(w).toFriendlyString());
+
                 // Scan for OP_RETURN
                 for (TransactionOutput out : tx.getOutputs()) {
                     Script script = out.getScriptPubKey();
                     if (script.isOpReturn()) {
-                        String data = new String(script.getChunks().get(1).data); // Simplified
-                        if (data.startsWith("IPFS:")) {
-                            String hash = data.substring(5);
-                            pinIpfs(hash);
+                        try {
+                            // Robust OP_RETURN parsing
+                            byte[] dataBytes = null;
+                            if (script.getChunks().size() > 1) {
+                                dataBytes = script.getChunks().get(1).data;
+                            }
+
+                            if (dataBytes != null) {
+                                String data = new String(dataBytes);
+                                if (data.startsWith("IPFS:")) {
+                                    String hash = data.substring(5);
+                                    pinIpfs(hash);
+                                    notifyFrontend("live_feed", "Auto-Pinning IPFS: " + hash);
+                                } else {
+                                     notifyFrontend("live_feed", "OP_RETURN: " + data);
+                                }
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
                 }
@@ -329,5 +349,18 @@ public class SupJSInterface {
 
     private void showToast(String msg) {
         mWebView.post(() -> Toast.makeText(mContext, msg, Toast.LENGTH_SHORT).show());
+    }
+
+    private void notifyFrontend(String eventType, String data) {
+        mWebView.post(() -> {
+            // Escape quotes for JS safety
+            String safeData = data.replace("'", "\\'").replace("\"", "\\\"");
+            String js = "if(window.onSupEvent) window.onSupEvent('" + eventType + "', '" + safeData + "');";
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                mWebView.evaluateJavascript(js, null);
+            } else {
+                mWebView.loadUrl("javascript:" + js);
+            }
+        });
     }
 }
