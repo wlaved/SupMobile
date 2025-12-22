@@ -182,6 +182,10 @@ public class SupNodeService extends Service {
                 isRunning, peers, height, path.replace("\\", "/"));
     }
 
+    public SupDatabaseHelper getDbHelper() {
+        return dbHelper;
+    }
+
     public void startLocalScan() {
         new Thread(() -> {
             try {
