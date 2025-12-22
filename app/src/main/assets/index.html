@@ -674,6 +674,11 @@ e) ? resolveUrnPath(value) : null;
     // But if it's NOT IPFS (e.g. public URL), we might want to prioritize too?
     // For now, assume getImageUrl handled the IPFS prioritization.
 
+    // Ensure timeout is long enough for local IPFS
+    if (url.includes("127.0.0.1")) {
+        timeout = Math.max(timeout, 60000);
+    }
+
     try {
       const img = new Image();
       if (!url.includes('bitfossil.org')) img.crossOrigin = 'Anonymous';

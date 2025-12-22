@@ -50,6 +50,9 @@ public class SupNodeService extends Service {
     // Listeners
     private List<NodeEventListener> listeners = new ArrayList<>();
 
+    // Database
+    private SupDatabaseHelper dbHelper;
+
     public interface NodeEventListener {
         void onEvent(String type, String data);
     }
@@ -64,6 +67,7 @@ public class SupNodeService extends Service {
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
+        dbHelper = new SupDatabaseHelper(this);
     }
 
     @Override
@@ -208,6 +212,9 @@ public class SupNodeService extends Service {
                                             asciiData.replace("\"", "\\\"").replace("\n", " "), txId, isWatched);
                         broadcast("new_post", json);
 
+                        // Index Locally
+                        dbHelper.addMessage(txId, "History", asciiData);
+
                         if (asciiData.startsWith("IPFS")) {
                              broadcast("ipfs_found", asciiData.substring(5));
                              broadcast("system_log", "Scanner Found IPFS: " + asciiData);
@@ -296,6 +303,9 @@ public class SupNodeService extends Service {
                                 String json = String.format("{\"type\":\"message\", \"sender\":\"%s\", \"content\":\"%s\", \"txid\":\"%s\", \"watched\":%b}",
                                     sender, data.replace("\"", "\\\"").replace("\n", " "), txId, isWatched);
                                 broadcast("new_post", json);
+
+                                // Index Locally
+                                dbHelper.addMessage(txId, sender, data);
 
                                 if (data.startsWith("IPFS:")) {
                                     String hash = data.substring(5);

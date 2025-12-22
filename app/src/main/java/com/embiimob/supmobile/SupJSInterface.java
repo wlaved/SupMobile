@@ -9,6 +9,7 @@ import android.os.IBinder;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.widget.Toast;
+import android.database.Cursor;
 
 import java.io.File;
 import java.net.HttpURLConnection;
@@ -178,6 +179,28 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
             nodeService.setConfiguration(isMainnet, customStoragePath);
         }
         showToast("Switched to " + (useMainnet ? "Mainnet" : "Testnet"));
+    }
+
+    @JavascriptInterface
+    public String localProfileSearch(String urn) {
+        if (!isBound || nodeService == null) return null;
+
+        // Basic implementation: check DB for profile
+        // Since we are just indexing messages for now, we might not have full profile metadata
+        // but we can return basic structure to satisfy "Offline Search" expectation.
+        SupDatabaseHelper db = nodeService.getDbHelper();
+        if (db != null) {
+            // For now, check if we have messages for this URN/Address?
+            // Or just return null if not explicitly in a "Profiles" table
+            Cursor c = db.getProfile(urn);
+            if (c != null && c.moveToFirst()) {
+                // Return cached profile
+                // Stub for future enhancement
+                c.close();
+                return "{\"URN\":\"" + urn + "\", \"offline\": true}";
+            }
+        }
+        return null;
     }
 
     private void showToast(String msg) {
