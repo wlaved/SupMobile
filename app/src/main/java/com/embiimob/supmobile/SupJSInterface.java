@@ -79,6 +79,17 @@ public class SupJSInterface {
     }
 
     @JavascriptInterface
+    public void setNetwork(boolean useMainnet) {
+        if (isRunning) {
+            showToast("Stop the node before switching networks.");
+            return;
+        }
+        this.isMainnet = useMainnet;
+        this.params = useMainnet ? MainNetParams.get() : TestNet3Params.get();
+        showToast("Switched to " + (useMainnet ? "Mainnet" : "Testnet"));
+    }
+
+    @JavascriptInterface
     public void stopNode() {
         if (!isRunning) return;
         new Thread(() -> {
@@ -225,21 +236,28 @@ public class SupJSInterface {
                         if (asciiData.startsWith("IPFS")) {
                              // Bridge it!
                              pinIpfs(asciiData.substring(5)); // Remove IPFS: prefix
-                             showToast("Found IPFS in Block! " + asciiData);
+                             notifyFrontend("live_feed", "Scanner Found IPFS: " + asciiData);
                         } else {
                              // Just log/toast for now
-                             // showToast("Found OP_RETURN: " + txId);
+                             // notifyFrontend("live_feed", "Scanner Found OP_RETURN: " + txId);
                         }
+                    }
+
+                    @Override
+                    public void onProgress(int blocksScanned) {
+                        notifyFrontend("live_feed", "Scanning... Processed " + blocksScanned + " blocks");
                     }
 
                     @Override
                     public void onScanComplete() {
                         showToast("Blockchain Scan Complete!");
+                        notifyFrontend("live_feed", "Scan Job Finished.");
                     }
 
                     @Override
                     public void onScanError(String error) {
                         showToast("Scan Error: " + error);
+                        notifyFrontend("live_feed", "Scan Error: " + error);
                     }
                 });
 

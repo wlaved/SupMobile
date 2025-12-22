@@ -148,7 +148,9 @@
 
         function toggleNetwork() {
             const isMainnet = document.getElementById('networkToggle').checked;
-            // TODO: Expose setNetwork to SupApp
+            if (window.SupApp && window.SupApp.setNetwork) {
+                window.SupApp.setNetwork(isMainnet);
+            }
             console.log("Network switched to " + (isMainnet ? "Mainnet" : "Testnet"));
         }
 

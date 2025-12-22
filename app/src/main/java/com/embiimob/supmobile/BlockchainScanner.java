@@ -47,7 +47,15 @@ public class BlockchainScanner {
 
             BlockFileLoader loader = new BlockFileLoader(params, blockFiles);
 
+            int blocksScanned = 0;
+            // Crude progress reporting since we don't know total blocks easily without pre-scan
+            // But we can report periodic updates
             for (Block block : loader) {
+                blocksScanned++;
+                if (blocksScanned % 100 == 0) {
+                     listener.onProgress(blocksScanned);
+                }
+
                 for (Transaction tx : block.getTransactions()) {
                     for (TransactionOutput output : tx.getOutputs()) {
                         try {
@@ -81,6 +89,7 @@ public class BlockchainScanner {
 
     public interface OpReturnListener {
         void onOpReturnFound(String txId, byte[] data);
+        void onProgress(int blocksScanned);
         void onScanComplete();
         void onScanError(String error);
     }
