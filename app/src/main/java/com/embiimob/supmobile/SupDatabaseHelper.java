@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class SupDatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "sup_data.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2; // Incremented version
 
     // Table: Profiles
     public static final String TABLE_PROFILES = "profiles";
@@ -22,6 +22,7 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
     public static final String TABLE_MESSAGES = "messages";
     public static final String COL_TXID = "txid";
     public static final String COL_SENDER = "sender";
+    public static final String COL_RECEIVER = "receiver"; // New Column
     public static final String COL_CONTENT = "content";
     public static final String COL_TIMESTAMP = "timestamp";
 
@@ -41,6 +42,7 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
         String createMessages = "CREATE TABLE " + TABLE_MESSAGES + " (" +
                 COL_TXID + " TEXT PRIMARY KEY, " +
                 COL_SENDER + " TEXT, " +
+                COL_RECEIVER + " TEXT, " +
                 COL_CONTENT + " TEXT, " +
                 COL_TIMESTAMP + " INTEGER)";
 
@@ -57,11 +59,12 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
 
     // --- Helper Methods ---
 
-    public void addMessage(String txid, String sender, String content) {
+    public void addMessage(String txid, String sender, String receiver, String content) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COL_TXID, txid);
         values.put(COL_SENDER, sender);
+        values.put(COL_RECEIVER, receiver);
         values.put(COL_CONTENT, content);
         values.put(COL_TIMESTAMP, System.currentTimeMillis());
         db.insertWithOnConflict(TABLE_MESSAGES, null, values, SQLiteDatabase.CONFLICT_IGNORE);
@@ -92,12 +95,42 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
             if (json.length() > 1) json.append(",");
             String txid = cursor.getString(cursor.getColumnIndexOrThrow(COL_TXID));
             String sender = cursor.getString(cursor.getColumnIndexOrThrow(COL_SENDER));
+            String receiver = cursor.isNull(cursor.getColumnIndexOrThrow(COL_RECEIVER)) ? "" : cursor.getString(cursor.getColumnIndexOrThrow(COL_RECEIVER));
             String content = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONTENT));
             long time = cursor.getLong(cursor.getColumnIndexOrThrow(COL_TIMESTAMP));
 
-            // Simple JSON construction
-            json.append(String.format("{\"txid\":\"%s\",\"sender\":\"%s\",\"content\":\"%s\",\"timestamp\":%d}",
-                txid, sender, content.replace("\"", "\\\"").replace("\n", " "), time));
+            // Format date for UI compatibility (YYYY-MM-DD...)
+            // UI expects BlockDate usually, but we use timestamp here.
+            String dateStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(time));
+
+            json.append(String.format("{\"TransactionId\":\"%s\",\"FromAddress\":\"%s\",\"ToAddress\":\"%s\",\"Message\":\"%s\",\"BlockDate\":\"%s\"}",
+                txid, sender, receiver, content.replace("\"", "\\\"").replace("\n", " "), dateStr));
+        }
+        cursor.close();
+        json.append("]");
+        return json.toString();
+    }
+
+    public String getMessagesByAddressJson(String address) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        // Query sender OR receiver
+        String selection = COL_SENDER + "=? OR " + COL_RECEIVER + "=?";
+        String[] selectionArgs = new String[]{address, address};
+
+        Cursor cursor = db.query(TABLE_MESSAGES, null, selection, selectionArgs, null, null, COL_TIMESTAMP + " DESC");
+
+        StringBuilder json = new StringBuilder("[");
+        while (cursor.moveToNext()) {
+            if (json.length() > 1) json.append(",");
+            String txid = cursor.getString(cursor.getColumnIndexOrThrow(COL_TXID));
+            String sender = cursor.getString(cursor.getColumnIndexOrThrow(COL_SENDER));
+            String receiver = cursor.isNull(cursor.getColumnIndexOrThrow(COL_RECEIVER)) ? "" : cursor.getString(cursor.getColumnIndexOrThrow(COL_RECEIVER));
+            String content = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONTENT));
+            long time = cursor.getLong(cursor.getColumnIndexOrThrow(COL_TIMESTAMP));
+             String dateStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(time));
+
+            json.append(String.format("{\"TransactionId\":\"%s\",\"FromAddress\":\"%s\",\"ToAddress\":\"%s\",\"Message\":\"%s\",\"BlockDate\":\"%s\"}",
+                txid, sender, receiver, content.replace("\"", "\\\"").replace("\n", " "), dateStr));
         }
         cursor.close();
         json.append("]");
@@ -106,7 +139,7 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
 
     public String getObjectsJson(String address) {
         SQLiteDatabase db = this.getReadableDatabase();
-        // Assuming objects are messages created by the address
+        // Objects are typically created by the user (sender)
         Cursor cursor = db.query(TABLE_MESSAGES, null, COL_SENDER + "=?", new String[]{address}, null, null, COL_TIMESTAMP + " DESC");
 
         StringBuilder json = new StringBuilder("[");
@@ -114,22 +147,10 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
             if (json.length() > 1) json.append(",");
             String content = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONTENT));
 
-            // We need to return a structure compatible with index.html's displayObjects
-            // content is usually raw JSON. We wrap it or assume it's the object.
-            // If content is not JSON, we might skip or wrap.
-            // For robustness, we try to detect if it looks like an object definition
-            // or just inject it and let JS parse.
-            // But index.html expects fields like Creators, URN.
-            // We can fake it if missing.
-
-            // Naive approach: Just dump the content if it looks like JSON object.
-            // If not, wrap it.
             String trimmed = content.trim();
             if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
                 json.append(trimmed);
             } else {
-                // Fallback for non-JSON content (maybe just a message)
-                // index.html might ignore it if fields are missing.
                 json.append(String.format("{\"Description\":\"%s\",\"Creators\":{\"%s\":\"\"}}",
                     content.replace("\"", "\\\"").replace("\n", " "), address));
             }

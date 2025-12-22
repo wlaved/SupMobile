@@ -268,7 +268,7 @@ public class SupNodeService extends Service {
                         broadcast("new_post", json);
 
                         // Index Locally
-                        dbHelper.addMessage(txId, "History", asciiData);
+                        dbHelper.addMessage(txId, "History", null, asciiData);
 
                         if (asciiData.startsWith("IPFS")) {
                              broadcast("ipfs_found", asciiData.substring(5));
@@ -293,7 +293,7 @@ public class SupNodeService extends Service {
                     public void onScanError(String error) {
                         broadcast("system_log", "Scan Error: " + error);
                     }
-                });
+                }, lastFile);
 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -363,7 +363,7 @@ public class SupNodeService extends Service {
                                 broadcast("new_post", json);
 
                                 // Index Locally
-                                dbHelper.addMessage(txId, sender, data);
+                                dbHelper.addMessage(txId, sender, null, data);
 
                                 if (data.startsWith("IPFS:")) {
                                     String hash = data.substring(5);

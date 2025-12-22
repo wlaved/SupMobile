@@ -159,15 +159,11 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
 
     @JavascriptInterface
     public String getSocialFeed(int limit) {
-        // Need to add this method to DB Helper first, plan step 4 covers it.
-        // But I need to add it here to be ready.
         if (isBound && nodeService != null) {
-             // For now return empty or stub until DB Helper update in next step
-             // Actually, I can't call a method that doesn't exist yet or it won't compile.
-             // I will skip adding the call until step 4 is done.
-             // Wait, I can add it now if I implemented SupDatabaseHelper.getMessages in step 4?
-             // No, step 4 is "Modify SupDatabaseHelper.java". I am in step 2.
-             return "[]";
+             SupDatabaseHelper db = nodeService.getDbHelper();
+             if (db != null) {
+                 return db.getMessagesJson(limit);
+             }
         }
         return "[]";
     }
@@ -216,6 +212,16 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
             }
         }
         return null;
+    }
+
+    @JavascriptInterface
+    public String localMessageSearch(String address) {
+        if (!isBound || nodeService == null) return "[]";
+        SupDatabaseHelper db = nodeService.getDbHelper();
+        if (db != null) {
+            return db.getMessagesByAddressJson(address);
+        }
+        return "[]";
     }
 
     @JavascriptInterface

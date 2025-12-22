@@ -592,15 +592,20 @@ pperCase() : `${urn.split(':')[0].toUpperCase()}-T`;
   };
 
   const fetchProfile = async (urn, mainnet) => {
+      // Priority 1: Local
+      if (window.SupApp && window.SupApp.localProfileSearch) {
+          try {
+              const local = window.SupApp.localProfileSearch(urn);
+              if (local) return JSON.parse(local);
+          } catch(e) {}
+      }
+
+      // Priority 2: API
       try {
           const response = await fetch(`https://p2fk.io/GetProfileByURN/${encodeURIComponent(urn)}?mainnet=${mainnet}`);
           if (response.ok) return await response.json();
           throw new Error("Profile API failed");
       } catch (e) {
-          if (window.SupApp && window.SupApp.localProfileSearch) {
-              const local = window.SupApp.localProfileSearch(urn);
-              if (local) return JSON.parse(local);
-          }
           throw e;
       }
   };
@@ -641,6 +646,20 @@ d)}?mainnet=${mainnet}&verbose=false`;
   const fetchProfileByAddress = async (address, mainnet) => {
     const cached = getCachedProfile(address);
     if (cached) return cached;
+
+    // Priority 1: Local
+    if (window.SupApp && window.SupApp.localProfileSearch) {
+        const local = window.SupApp.localProfileSearch(address);
+        if (local) {
+            try {
+                const p = JSON.parse(local);
+                cacheProfile(address, p);
+                return p;
+            } catch(e) {}
+        }
+    }
+
+    // Priority 2: API
     try {
       const profile = await fetchAPI(
         `https://p2fk.io/GetProfileByAddress/${address}?mainnet=${mainnet}`,
@@ -649,16 +668,6 @@ d)}?mainnet=${mainnet}&verbose=false`;
       if (profile) cacheProfile(address, profile);
       return profile;
     } catch (e) {
-      // Fallback
-      if (window.SupApp && window.SupApp.localProfileSearch) {
-          // localProfileSearch is currently URN based but we can try address
-          const local = window.SupApp.localProfileSearch(address);
-          if (local) {
-              const p = JSON.parse(local);
-              cacheProfile(address, p);
-              return p;
-          }
-      }
       return null;
     }
   };
@@ -1386,14 +1395,16 @@ Gap - 8)}px`;
          // Auto-search for specific transaction/object
          console.log(`Initial load with TID: ${tid}, mainnet: ${mainnet}`);
          document.getElementById('urnInput').value = tid;
-         searchProfile(tid, mainnet);
+         // Delay slightly to allow bridge init
+         setTimeout(() => searchProfile(tid, mainnet), 100);
     } else if (urn || address) {
         console.log(`Initial load with urn: ${urn}, address: ${address}, mainnet: ${mainnet}`);
-        // If address is provided, set it immediately to filter
+        document.getElementById('urnInput').value = urn || address;
         if (address) {
             state.creatorAddress = address;
         }
-        searchProfile(urn || address, mainnet);
+        // Delay slightly to allow bridge init
+        setTimeout(() => searchProfile(urn || address, mainnet), 100);
     }
   });
 

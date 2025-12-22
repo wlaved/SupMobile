@@ -450,55 +450,87 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
         };
 
         const fetchProfile = async (urn, mainnet, signal) => {
-            // Try fetching from API first
-            try {
-                // If offline or mocked, this might fail or be slow
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000); // Short timeout for API check
-                const response = await fetch(`https://p2fk.io/GetProfileByURN/${encodeURIComponent(urn)}?mainnet=${mainnet}`, {
-                    signal: signal || controller.signal
-                });
-                clearTimeout(timeoutId);
-                if (response.ok) return await response.json();
-            } catch (e) {
-                console.log("API unavailable, falling back to local.");
-            }
-
-            // Fallback to local
+            // Priority 1: Local Search (Offline First)
             if (window.SupApp && window.SupApp.localProfileSearch) {
                 try {
+                    console.log("Checking local DB for profile: " + urn);
                     const localData = window.SupApp.localProfileSearch(urn);
                     if (localData) {
-                        console.log("Found local profile data: " + localData);
-                        return JSON.parse(localData);
+                        const parsed = JSON.parse(localData);
+                        // If it has minimal data, maybe try to enhance from API in background?
+                        // For now, return local immediately for speed.
+                        console.log("Found local profile data.");
+                        return parsed;
                     }
                 } catch(e) {
                     console.error("Local search error: " + e);
                 }
             }
 
-            return null; // Return null if not found anywhere, don't throw generic error yet
+            // Priority 2: Remote API
+            try {
+                const controller = new AbortController();
+                // Increased timeout slightly as we only get here if local missing
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+                const response = await fetch(`https://p2fk.io/GetProfileByURN/${encodeURIComponent(urn)}?mainnet=${mainnet}`, {
+                    signal: signal || controller.signal
+                });
+                clearTimeout(timeoutId);
+                if (response.ok) return await response.json();
+            } catch (e) {
+                console.log("API unavailable or not found.");
+            }
+
+            return null;
         };
 
-        const fetchMessages = (address, mainnet, skip, qty, signal) =>
-            fetchAPI(
+        const fetchMessages = async (address, mainnet, skip, qty, signal) => {
+            // Priority 1: Local Message Search (Offline First)
+            if (window.SupApp && window.SupApp.localMessageSearch && skip === 0) {
+                try {
+                    console.log("Checking local DB for messages: " + address);
+                    const localData = window.SupApp.localMessageSearch(address);
+                    if (localData) {
+                        const parsed = JSON.parse(localData);
+                        if (parsed && parsed.length > 0) {
+                             console.log(`Found ${parsed.length} local messages.`);
+                             return parsed;
+                        }
+                    }
+                } catch(e) {
+                    console.error("Local message search error: " + e);
+                }
+            }
+
+            // Priority 2: Remote API
+            return fetchAPI(
                 `https://p2fk.io/GetPublicMessagesByAddress/${encodeURIComponent(address)}?skip=${skip}&qty=${qty}&mainnet=${mainnet}`,
                 `Messages not found for address: ${address}`,
                 signal
             );
+        };
 
         const fetchProfileByAddress = async (address, mainnet, signal) => {
-            // Validate address format loosely to allow URNs if used as fallback
-            if (!address || typeof address !== 'string') {
-                return null;
-            }
+            if (!address || typeof address !== 'string') return null;
             const cached = getCachedProfile(address);
             if (cached) return cached;
 
-            // Try API
+            // Priority 1: Local
+            if (window.SupApp && window.SupApp.localProfileSearch) {
+                try {
+                    const localData = window.SupApp.localProfileSearch(address);
+                    if (localData) {
+                        const parsed = JSON.parse(localData);
+                        cacheProfile(address, parsed); // Cache local result too
+                        return parsed;
+                    }
+                } catch(e) {}
+            }
+
+            // Priority 2: API
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
                 const response = await fetch(`https://p2fk.io/GetProfileByAddress/${encodeURIComponent(address)}?mainnet=${mainnet}`, {
                     signal: signal || controller.signal
                 });
@@ -509,20 +541,7 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                     return profile;
                 }
             } catch (e) {
-                console.log("API fetch failed for address, checking local...");
-            }
-
-            // Try Local
-            if (window.SupApp && window.SupApp.localProfileSearch) {
-                try {
-                    // Note: localProfileSearch in Java is URN based currently,
-                    // but we might pass address and let it decide or overload it.
-                    // For now, assume it returns a profile object if found by whatever key.
-                    const localData = window.SupApp.localProfileSearch(address);
-                    if (localData) {
-                        return JSON.parse(localData);
-                    }
-                } catch(e) {}
+                console.log("API fetch failed.");
             }
 
             return null;
@@ -723,6 +742,11 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                 console.log(`Aborting parseMessage for outdated search ID: ${searchId}`);
                 return { cleanMessage: "", attachments: [], links: [] };
             }
+            // Robustness: Handle null/undefined message
+            if (!message) {
+                 return { cleanMessage: "[No Content]", attachments: [], links: [] };
+            }
+
             const attachments = [];
             const links = [];
             const urnRegex = /@([A-Za-z0-9]+(?:\/[A-Za-z0-9]+)?)/g;
