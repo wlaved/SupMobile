@@ -182,6 +182,13 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
     }
 
     @JavascriptInterface
+    public void setAutoScan(boolean enabled) {
+        android.content.SharedPreferences prefs = mContext.getSharedPreferences("SupPrefs", Context.MODE_PRIVATE);
+        prefs.edit().putBoolean("autoScan", enabled).apply();
+        showToast("Auto-Scan " + (enabled ? "Enabled" : "Disabled"));
+    }
+
+    @JavascriptInterface
     public String localProfileSearch(String urn) {
         if (!isBound || nodeService == null) return null;
 

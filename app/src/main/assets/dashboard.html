@@ -71,7 +71,14 @@
         <button onclick="requestPermissions()" style="border-color: #03dac6; color: #03dac6;">Grant App Permissions</button>
         <button onclick="startNode()">Start Node</button>
         <button onclick="stopNode()">Stop Node</button>
-        <button onclick="scanBlockchain()" style="border-color: #bb86fc; color: #bb86fc;">Scan Local Blockchain (blk*.dat)</button>
+
+        <div style="border: 1px solid #444; padding: 10px; border-radius: 8px;">
+            <div style="font-size: 0.9em; margin-bottom: 5px;">Import Tools</div>
+            <button onclick="scanBlockchain()" style="border-color: #bb86fc; color: #bb86fc; width: 100%;">Import/Rescan Local Blocks</button>
+            <label style="display: block; margin-top: 8px; font-size: 0.8em; color: #b0b0b0;">
+                <input type="checkbox" id="autoScanToggle" onchange="toggleAutoScan()"> Auto-Import on Startup
+            </label>
+        </div>
     </div>
 
     <div class="status-panel">
@@ -165,6 +172,13 @@
                 window.SupApp.setNetwork(isMainnet);
             }
             console.log("Network switched to " + (isMainnet ? "Mainnet" : "Testnet"));
+        }
+
+        function toggleAutoScan() {
+            const enabled = document.getElementById('autoScanToggle').checked;
+            if (window.SupApp && window.SupApp.setAutoScan) {
+                window.SupApp.setAutoScan(enabled);
+            }
         }
 
         function doUnifiedSearch() {

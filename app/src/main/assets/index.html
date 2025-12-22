@@ -686,6 +686,16 @@ e) ? resolveUrnPath(value) : null;
         const timer = setTimeout(() => reject(new Error('Timeout')), timeout);
         img.onload = async () => {
           clearTimeout(timer);
+
+          // Auto-Pin
+          if (!url.includes("127.0.0.1") && url.includes("ipfs")) {
+               const hashMatch = url.match(/ipfs\/([a-zA-Z0-9]+)/);
+               if (hashMatch && window.SupApp && window.SupApp.pinIpfs) {
+                   console.log("Auto-pinning object image: " + hashMatch[1]);
+                   window.SupApp.pinIpfs(hashMatch[1]);
+               }
+          }
+
           const resizedUrl = url.includes('bitfossil.org') ? url : await resizeI
 mage(img, 1024);
           state.imageCache.set(url, resizedUrl);

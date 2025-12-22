@@ -620,8 +620,9 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
             }
 
             for (let attempt = 0; attempt <= retries; attempt++) {
-                const gatewayUrl = currentUrl.includes("ipfs.io") || currentUrl.includes("dweb.link") || currentUrl.includes("cloudflare-ipfs.com")
-                    ? currentUrl.replace(/https:\/\/[^\/]+\/ipfs\//, gateways[attempt % gateways.length])
+                const gateway = gateways[attempt % gateways.length];
+                const gatewayUrl = currentUrl.includes("ipfs.io") || currentUrl.includes("dweb.link") || currentUrl.includes("cloudflare-ipfs.com") || currentUrl.includes("127.0.0.1")
+                    ? currentUrl.replace(/https?:\/\/[^\/]+\/ipfs\//, gateway)
                     : currentUrl;
 
                 try {
@@ -636,6 +637,16 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                         img.onload = () => {
                             clearTimeout(timer);
                             console.log(`Successfully loaded image: ${gatewayUrl}`);
+
+                            // Auto-Pin logic: If loaded from public, pin locally
+                            if (!gatewayUrl.includes("127.0.0.1") && (url.includes("ipfs") || gatewayUrl.includes("ipfs"))) {
+                                const hashMatch = gatewayUrl.match(/ipfs\/([a-zA-Z0-9]+)/);
+                                if (hashMatch && window.SupApp && window.SupApp.pinIpfs) {
+                                    console.log("Auto-pinning content loaded from public gateway: " + hashMatch[1]);
+                                    window.SupApp.pinIpfs(hashMatch[1]);
+                                }
+                            }
+
                             cacheImage(url, gatewayUrl);
                             resolve(gatewayUrl);
                         };

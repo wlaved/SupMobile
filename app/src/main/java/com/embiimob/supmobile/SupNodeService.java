@@ -76,8 +76,24 @@ public class SupNodeService extends Service {
             String action = intent.getAction();
             if ("START".equals(action)) {
                 startForeground(NOTIFICATION_ID, createNotification("Sup Node Active"));
-                // Initialize if needed, but actual start happens via bind or explicit call usually
-                // But for "Termux style", we want it to persist.
+
+                // Check Auto-Scan Pref
+                android.content.SharedPreferences prefs = getSharedPreferences("SupPrefs", Context.MODE_PRIVATE);
+                boolean autoScan = prefs.getBoolean("autoScan", false);
+                if (autoScan) {
+                    // Slight delay to ensure config is set if coming from fresh start
+                    // But config usually comes from bind.
+                    // For now, if autoScan is set, we assume path is set too in prefs and handled by setupBitcoinJ or manual trigger.
+                    // Actually, setupBitcoinJ handles config internally if we move config loading here or verify it.
+                    // Let's just log it for now, as startLocalScan relies on 'params' which needs 'isMainnet'.
+                    // We need to load prefs here to support full auto-start independent of UI binding.
+                    this.customStoragePath = prefs.getString("storagePath", null);
+                    this.isMainnet = prefs.getBoolean("isMainnet", false);
+                    this.params = isMainnet ? MainNetParams.get() : TestNet3Params.get();
+
+                    startLocalScan();
+                }
+
             } else if ("STOP".equals(action)) {
                 stopNode();
                 stopForeground(true);
