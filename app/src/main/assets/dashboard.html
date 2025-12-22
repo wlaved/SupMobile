@@ -94,9 +94,12 @@
 
     <!-- Live Social Feed -->
     <div class="status-panel" style="text-align: left;">
-        <h3>Live Social Feed</h3>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <h3>Live Social Feed</h3>
+            <label style="font-size: 0.8em;"><input type="checkbox" id="filterWatched" checked onchange="filterFeed()"> Filter Watched</label>
+        </div>
         <div id="socialFeed" style="max-height: 300px; overflow-y: auto;">
-            <div style="color: #666; font-style: italic;">Waiting for incoming messages...</div>
+            <div id="emptyFeed" style="color: #666; font-style: italic;">Waiting for incoming messages...</div>
         </div>
     </div>
 
@@ -223,13 +226,24 @@
                 try {
                     const msg = JSON.parse(data);
                     const feed = document.getElementById('socialFeed');
+                    const empty = document.getElementById('emptyFeed');
+                    if (empty) empty.style.display = 'none';
 
                     // Create card
                     const card = document.createElement('div');
-                    card.style.background = "#333";
+                    card.className = "post-card";
+                    card.dataset.watched = msg.watched; // Store for filtering
+                    card.style.background = msg.watched ? "#2a2a2a" : "#1e1e1e"; // Highlight watched slightly?
                     card.style.padding = "10px";
                     card.style.marginBottom = "8px";
                     card.style.borderRadius = "5px";
+                    card.style.borderLeft = msg.watched ? "3px solid #03dac6" : "3px solid transparent";
+
+                    // Initial visibility check
+                    const filterActive = document.getElementById('filterWatched').checked;
+                    if (filterActive && !msg.watched) {
+                        card.style.display = 'none';
+                    }
 
                     let contentHtml = msg.content;
                     // Detect IPFS image
@@ -245,6 +259,9 @@
                     `;
 
                     feed.prepend(card);
+
+                    // Limit total items (but keep hidden ones for toggling if we want, or just limit total DOM nodes)
+                    // Let's limit visible nodes? No, limit total nodes to avoid leak
                     if (feed.children.length > 50) feed.removeChild(feed.lastChild);
 
                 } catch(e) {
@@ -252,6 +269,19 @@
                 }
             }
         };
+
+        function filterFeed() {
+            const filterActive = document.getElementById('filterWatched').checked;
+            const posts = document.getElementsByClassName('post-card');
+            for (let card of posts) {
+                const isWatched = card.dataset.watched === "true";
+                if (filterActive) {
+                    card.style.display = isWatched ? "block" : "none";
+                } else {
+                    card.style.display = "block";
+                }
+            }
+        }
     </script>
 </body>
 </html>

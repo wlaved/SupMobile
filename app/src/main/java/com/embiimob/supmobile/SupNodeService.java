@@ -198,15 +198,16 @@ public class SupNodeService extends Service {
                     @Override
                     public void onOpReturnFound(String txId, byte[] data) {
                         String asciiData = new String(data);
-                        String json = String.format("{\"type\":\"scanner\", \"sender\":\"History\", \"content\":\"%s\", \"txid\":\"%s\"}",
-                                            asciiData.replace("\"", "\\\"").replace("\n", " "), txId);
+                        // In Scanner, sender is hard to know without full index, assume generic for now
+                        // or try to parse if Sup protocol puts address in OP_RETURN (it usually doesn't, it's in inputs)
+                        // For now, mark isWatched=false for history scan unless we match content?
+                        // Or just let history be global.
+                        boolean isWatched = false;
+
+                        String json = String.format("{\"type\":\"scanner\", \"sender\":\"History\", \"content\":\"%s\", \"txid\":\"%s\", \"watched\":%b}",
+                                            asciiData.replace("\"", "\\\"").replace("\n", " "), txId, isWatched);
                         broadcast("new_post", json);
 
-                        // We also trigger a callback here if needed, but the JSInterface logic
-                        // for pinning IPFS will need to be handled.
-                        // For simplicity, we broadcast the RAW event and let JSInterface handle pinning logic via bridge?
-                        // Actually, this Service doesn't have the IPFS pinner code.
-                        // We should expose an event that JSInterface can catch.
                         if (asciiData.startsWith("IPFS")) {
                              broadcast("ipfs_found", asciiData.substring(5));
                              broadcast("system_log", "Scanner Found IPFS: " + asciiData);
@@ -276,6 +277,11 @@ public class SupNodeService extends Service {
             @Override
             public void onCoinsReceived(Wallet w, Transaction tx, Coin prevBalance, Coin newBalance) {
                 String txId = tx.getTxId().toString();
+                // Check if relevant to wallet (Watched)
+                // In bitcoinj, onCoinsReceived fires for relevant transactions.
+                // If it's in the wallet, it's either ours or watched.
+                boolean isWatched = true; // By definition of this event firing for SPV wallet
+
                 for (TransactionOutput out : tx.getOutputs()) {
                     Script script = out.getScriptPubKey();
                     if (script.isOpReturn()) {
@@ -286,9 +292,9 @@ public class SupNodeService extends Service {
                             }
                             if (dataBytes != null) {
                                 String data = new String(dataBytes);
-                                String sender = "Mempool";
-                                String json = String.format("{\"type\":\"message\", \"sender\":\"%s\", \"content\":\"%s\", \"txid\":\"%s\"}",
-                                    sender, data.replace("\"", "\\\"").replace("\n", " "), txId);
+                                String sender = "Watched/Mempool";
+                                String json = String.format("{\"type\":\"message\", \"sender\":\"%s\", \"content\":\"%s\", \"txid\":\"%s\", \"watched\":%b}",
+                                    sender, data.replace("\"", "\\\"").replace("\n", " "), txId, isWatched);
                                 broadcast("new_post", json);
 
                                 if (data.startsWith("IPFS:")) {
