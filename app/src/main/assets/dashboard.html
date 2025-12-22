@@ -115,7 +115,8 @@
                 document.getElementById('nodeState').textContent = status.running ? "Running" : "Stopped";
                 document.getElementById('peerCount').textContent = status.peers;
                 document.getElementById('chainHeight').textContent = status.height;
-                document.getElementById('storagePath').textContent = status.path;
+                // Only show path if initialized or explicitly set
+                document.getElementById('storagePath').textContent = status.path || "Not set";
             }
         }
 
@@ -200,6 +201,9 @@
 
         // Poll for status every 2 seconds
         setInterval(updateStatus, 2000);
+
+        // Initial status load
+        window.addEventListener('load', updateStatus);
 
         // Bridge Callback
         window.onSupEvent = function(type, data) {

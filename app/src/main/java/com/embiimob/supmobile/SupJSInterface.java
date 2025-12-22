@@ -53,8 +53,13 @@ public class SupJSInterface {
     public SupJSInterface(Context context, WebView webView) {
         mContext = context;
         mWebView = webView;
-        // Default to Testnet
-        params = TestNet3Params.get();
+        // Load persisted path
+        android.content.SharedPreferences prefs = mContext.getSharedPreferences("SupPrefs", Context.MODE_PRIVATE);
+        customStoragePath = prefs.getString("storagePath", null);
+        isMainnet = prefs.getBoolean("isMainnet", false);
+
+        // Default to Testnet unless loaded otherwise
+        params = isMainnet ? MainNetParams.get() : TestNet3Params.get();
     }
 
     // --- Bridge Methods ---
@@ -134,7 +139,12 @@ public class SupJSInterface {
             return;
         }
         customStoragePath = path;
-        showToast("Storage path set to: " + path);
+
+        // Persist
+        android.content.SharedPreferences prefs = mContext.getSharedPreferences("SupPrefs", Context.MODE_PRIVATE);
+        prefs.edit().putString("storagePath", path).apply();
+
+        showToast("Storage path saved: " + path);
     }
 
     @JavascriptInterface
