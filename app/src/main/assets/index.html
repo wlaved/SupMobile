@@ -1290,6 +1290,36 @@ Gap - 8)}px`;
     }
   };
 
+  const getQueryParam = (name) => {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+  };
+
+  window.addEventListener('load', () => {
+    const address = getQueryParam("address");
+    const urn = getQueryParam("urn");
+    const tid = getQueryParam("tid");
+    const mainnet = getQueryParam("mainnet") === "true";
+
+    // Set network toggle based on URL
+    state.currentMainnet = mainnet;
+    document.getElementById('mainnetToggle').checked = mainnet;
+
+    if (tid) {
+         // Auto-search for specific transaction/object
+         console.log(`Initial load with TID: ${tid}, mainnet: ${mainnet}`);
+         document.getElementById('urnInput').value = tid;
+         searchProfile(tid, mainnet);
+    } else if (urn || address) {
+        console.log(`Initial load with urn: ${urn}, address: ${address}, mainnet: ${mainnet}`);
+        // If address is provided, set it immediately to filter
+        if (address) {
+            state.creatorAddress = address;
+        }
+        searchProfile(urn || address, mainnet);
+    }
+  });
+
   window.addEventListener('scroll', () => {
     if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 100
 && !state.isSearching) {

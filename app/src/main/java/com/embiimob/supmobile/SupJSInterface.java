@@ -329,14 +329,12 @@ public class SupJSInterface {
             @Override
             public void onCoinsReceived(Wallet w, Transaction tx, Coin prevBalance, Coin newBalance) {
                 String txId = tx.getTxId().toString();
-                notifyFrontend("live_feed", "TX Received: " + txId + " | Amt: " + tx.getValue(w).toFriendlyString());
 
-                // Scan for OP_RETURN
+                // Scan for OP_RETURN to populate Social Feed
                 for (TransactionOutput out : tx.getOutputs()) {
                     Script script = out.getScriptPubKey();
                     if (script.isOpReturn()) {
                         try {
-                            // Robust OP_RETURN parsing
                             byte[] dataBytes = null;
                             if (script.getChunks().size() > 1) {
                                 dataBytes = script.getChunks().get(1).data;
@@ -344,12 +342,18 @@ public class SupJSInterface {
 
                             if (dataBytes != null) {
                                 String data = new String(dataBytes);
+                                String sender = "Mempool";
+
+                                // Push structured data for Social Feed
+                                String json = String.format("{\"type\":\"message\", \"sender\":\"%s\", \"content\":\"%s\", \"txid\":\"%s\"}",
+                                    sender, data.replace("\"", "\\\"").replace("\n", " "), txId);
+
+                                notifyFrontend("new_post", json);
+
                                 if (data.startsWith("IPFS:")) {
                                     String hash = data.substring(5);
                                     pinIpfs(hash);
-                                    notifyFrontend("live_feed", "Auto-Pinning IPFS: " + hash);
-                                } else {
-                                     notifyFrontend("live_feed", "OP_RETURN: " + data);
+                                    notifyFrontend("system_log", "Auto-Pinning IPFS: " + hash);
                                 }
                             }
                         } catch (Exception e) {

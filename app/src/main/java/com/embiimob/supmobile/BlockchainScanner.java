@@ -52,7 +52,7 @@ public class BlockchainScanner {
             // But we can report periodic updates
             for (Block block : loader) {
                 blocksScanned++;
-                if (blocksScanned % 100 == 0) {
+                if (blocksScanned % 1000 == 0) {
                      listener.onProgress(blocksScanned);
                 }
 

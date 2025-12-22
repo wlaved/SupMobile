@@ -92,10 +92,19 @@
         </div>
     </div>
 
-    <div class="status-panel" style="text-align: left; max-height: 200px; overflow-y: auto; font-family: monospace;">
-        <h3>Live Monitor</h3>
-        <div id="liveMonitor" style="font-size: 12px; color: #03dac6;">
-            <div>Listening for events...</div>
+    <!-- Live Social Feed -->
+    <div class="status-panel" style="text-align: left;">
+        <h3>Live Social Feed</h3>
+        <div id="socialFeed" style="max-height: 300px; overflow-y: auto;">
+            <div style="color: #666; font-style: italic;">Waiting for incoming messages...</div>
+        </div>
+    </div>
+
+    <!-- System Log (Status & Scanner) -->
+    <div class="status-panel" style="text-align: left; font-family: monospace;">
+        <h3>System Log</h3>
+        <div id="systemLog" style="height: 100px; overflow-y: auto; font-size: 12px; color: #03dac6; background: #000; padding: 5px;">
+            <div>System Ready.</div>
         </div>
     </div>
 
@@ -195,18 +204,47 @@
         // Bridge Callback
         window.onSupEvent = function(type, data) {
             console.log("SupEvent: " + type + " - " + data);
-            if (type === 'live_feed') {
-                const monitor = document.getElementById('liveMonitor');
+
+            if (type === 'system_log' || type === 'live_feed') {
+                // Legacy 'live_feed' mapped to system log for now
+                const logDiv = document.getElementById('systemLog');
                 const entry = document.createElement('div');
                 const time = new Date().toLocaleTimeString();
                 entry.textContent = `[${time}] ${data}`;
-                entry.style.borderBottom = "1px solid #333";
-                entry.style.padding = "2px 0";
-                monitor.prepend(entry); // Newest top
+                logDiv.prepend(entry);
+                if (logDiv.children.length > 50) logDiv.removeChild(logDiv.lastChild);
+            }
 
-                // Limit history
-                if (monitor.children.length > 50) {
-                    monitor.removeChild(monitor.lastChild);
+            if (type === 'new_post') {
+                try {
+                    const msg = JSON.parse(data);
+                    const feed = document.getElementById('socialFeed');
+
+                    // Create card
+                    const card = document.createElement('div');
+                    card.style.background = "#333";
+                    card.style.padding = "10px";
+                    card.style.marginBottom = "8px";
+                    card.style.borderRadius = "5px";
+
+                    let contentHtml = msg.content;
+                    // Detect IPFS image
+                    if (contentHtml.startsWith("IPFS:")) {
+                         const hash = contentHtml.substring(5);
+                         contentHtml = `<img src="http://127.0.0.1:8080/ipfs/${hash}" style="max-width:100%; max-height:200px; display:block; margin-top:5px;">`;
+                    }
+
+                    card.innerHTML = `
+                        <div style="font-size:0.8em; color:#bb86fc;">${msg.sender} <span style="float:right; color:#888;">${new Date().toLocaleTimeString()}</span></div>
+                        <div style="margin-top:5px; color:#e0e0e0;">${contentHtml}</div>
+                        <div style="font-size:0.7em; color:#666; margin-top:5px;">TXID: ${msg.txid.substring(0,8)}...</div>
+                    `;
+
+                    feed.prepend(card);
+                    if (feed.children.length > 50) feed.removeChild(feed.lastChild);
+
+                } catch(e) {
+                    console.error("Failed to parse post: " + e);
                 }
             }
         };
