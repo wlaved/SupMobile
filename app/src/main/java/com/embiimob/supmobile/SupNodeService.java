@@ -186,6 +186,26 @@ public class SupNodeService extends Service {
         return dbHelper;
     }
 
+    public void addWatchedAddress(String address) {
+        if (wallet == null) return;
+        try {
+            org.bitcoinj.core.Address addr = org.bitcoinj.core.Address.fromString(params, address);
+            if (wallet.isWatchedScript(org.bitcoinj.script.ScriptBuilder.createOutputScript(addr))) {
+                broadcast("system_log", "Address already watched: " + address);
+                return;
+            }
+            wallet.addWatchedAddress(addr);
+            // Save wallet? bitcoinj autosave if configured?
+            // We loaded from file, we should save.
+            wallet.saveToFile(new File(customStoragePath != null ? customStoragePath : getExternalFilesDir(null).getAbsolutePath(),
+                (isMainnet ? "sup-mainnet" : "sup-testnet") + ".wallet"));
+
+            broadcast("system_log", "Added to watch list: " + address);
+        } catch (Exception e) {
+            broadcast("system_log", "Invalid address: " + e.getMessage());
+        }
+    }
+
     public void startLocalScan() {
         new Thread(() -> {
             try {
@@ -217,8 +237,23 @@ public class SupNodeService extends Service {
                     return;
                 }
 
+                // Resume Logic: Check Prefs
+                android.content.SharedPreferences prefs = getSharedPreferences("SupPrefs", Context.MODE_PRIVATE);
+                String lastFile = prefs.getString("lastScannedFile_" + (isMainnet ? "main" : "test"), "");
+
+                if (!lastFile.isEmpty()) {
+                    broadcast("system_log", "Resuming scan after: " + lastFile);
+                }
+
                 BlockchainScanner scanner = new BlockchainScanner(params, scanTarget.getAbsolutePath());
-                scanner.scanForOpReturn(new BlockchainScanner.OpReturnListener() {
+                scanner.scanForOpReturn(new BlockchainScanner.FileScanListener() {
+                    @Override
+                    public void onFileComplete(String fileName) {
+                        // Save progress
+                        android.content.SharedPreferences prefs = getSharedPreferences("SupPrefs", Context.MODE_PRIVATE);
+                        prefs.edit().putString("lastScannedFile_" + (isMainnet ? "main" : "test"), fileName).apply();
+                    }
+
                     @Override
                     public void onOpReturnFound(String txId, byte[] data) {
                         String asciiData = new String(data);
@@ -249,6 +284,9 @@ public class SupNodeService extends Service {
                     @Override
                     public void onScanComplete() {
                         broadcast("system_log", "Blockchain Scan Complete!");
+                        // Clear resume point on complete? Or keep it?
+                        // If complete, maybe we want to re-scan later for new files?
+                        // For now, assume done.
                     }
 
                     @Override

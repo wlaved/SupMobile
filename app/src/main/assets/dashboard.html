@@ -220,7 +220,87 @@
         setInterval(updateStatus, 2000);
 
         // Initial status load
-        window.addEventListener('load', updateStatus);
+        window.addEventListener('load', () => {
+            updateStatus();
+            loadCachedFeed();
+        });
+
+        function loadCachedFeed() {
+            if (window.SupApp && window.SupApp.getSocialFeed) {
+                try {
+                    const data = window.SupApp.getSocialFeed(50);
+                    const messages = JSON.parse(data);
+                    messages.forEach(msg => {
+                        // Re-use logic from onSupEvent 'new_post' but we need to refactor it or copy-paste
+                        // Refactoring is safer.
+                        addPostToFeed(msg);
+                    });
+                } catch(e) {
+                    console.error("Error loading cached feed: " + e);
+                }
+            }
+        }
+
+        function addPostToFeed(msg) {
+             const feed = document.getElementById('socialFeed');
+             const empty = document.getElementById('emptyFeed');
+             if (empty) empty.style.display = 'none';
+
+             const card = document.createElement('div');
+             card.className = "post-card";
+             card.dataset.watched = msg.watched || "true"; // Default to true for historical/cached? Or generic?
+             // Actually, DB doesn't store 'watched' yet!
+             // We need to update DB schema or assume all indexed are valid history.
+             // For now, assume watched=true for feed display or handle undefined.
+
+             card.style.background = "#1e1e1e";
+             card.style.padding = "10px";
+             card.style.marginBottom = "8px";
+             card.style.borderRadius = "5px";
+
+             let contentHtml = msg.content;
+             if (contentHtml.startsWith("IPFS:")) {
+                  const hash = contentHtml.substring(5);
+                  contentHtml = `<img src="http://127.0.0.1:8080/ipfs/${hash}" style="max-width:100%; max-height:200px; display:block; margin-top:5px;">`;
+             }
+
+             card.innerHTML = `
+                 <div style="font-size:0.8em; color:#bb86fc;">${msg.sender} <span style="float:right; color:#888;">${new Date(msg.timestamp || Date.now()).toLocaleTimeString()}</span></div>
+                 <div style="margin-top:5px; color:#e0e0e0;">${contentHtml}</div>
+                 <div style="font-size:0.7em; color:#666; margin-top:5px;">TXID: ${msg.txid.substring(0,8)}...</div>
+             `;
+
+             feed.prepend(card); // Or append? Query returns DESC (newest first).
+             // If newest first, we should Append to bottom?
+             // Or Prepend?
+             // If array is [Newest, Older, Oldest], iterating them:
+             // 1. Prepend Newest -> [Newest]
+             // 2. Prepend Older -> [Older, Newest] -> Wrong order visually?
+             // If we want [Newest, Older], we should Append to the *bottom* of the container?
+             // Or iterate in reverse.
+             // Let's iterate reverse or use append.
+             // But 'live' feed uses prepend.
+             // So we should append for history?
+             // Actually, if we get [Newest...], we should render Newest at top.
+             // If we loop:
+             // Item 0 (Newest): Prepend -> [Newest]
+             // Item 1 (Older): Prepend -> [Older, Newest]
+             // So Older appears *above* Newest. That is wrong.
+             // So we should iterate backwards or Append?
+             // Wait, standard feeds show Newest at Top.
+             // Live events use prepend (add to top).
+             // Bulk load: we should insert them such that the order is preserved.
+             // If array is sorted DESC (Newest First):
+             // [N1, N2, N3]
+             // We want DOM:
+             // N1
+             // N2
+             // N3
+             // If we use Append:
+             // N1
+             // N2 ... Correct.
+             feed.appendChild(card);
+        }
 
         // Bridge Callback
         window.onSupEvent = function(type, data) {
@@ -239,28 +319,29 @@
             if (type === 'new_post') {
                 try {
                     const msg = JSON.parse(data);
+                    // Use helper, but helper uses append (for history).
+                    // Live needs prepend.
+                    // Let's duplicate logic for now or parameterize?
+                    // Let's just fix the block here to match the logic.
                     const feed = document.getElementById('socialFeed');
                     const empty = document.getElementById('emptyFeed');
                     if (empty) empty.style.display = 'none';
 
-                    // Create card
                     const card = document.createElement('div');
                     card.className = "post-card";
-                    card.dataset.watched = msg.watched; // Store for filtering
-                    card.style.background = msg.watched ? "#2a2a2a" : "#1e1e1e"; // Highlight watched slightly?
+                    card.dataset.watched = msg.watched;
+                    card.style.background = msg.watched ? "#2a2a2a" : "#1e1e1e";
                     card.style.padding = "10px";
                     card.style.marginBottom = "8px";
                     card.style.borderRadius = "5px";
                     card.style.borderLeft = msg.watched ? "3px solid #03dac6" : "3px solid transparent";
 
-                    // Initial visibility check
                     const filterActive = document.getElementById('filterWatched').checked;
                     if (filterActive && !msg.watched) {
                         card.style.display = 'none';
                     }
 
                     let contentHtml = msg.content;
-                    // Detect IPFS image
                     if (contentHtml.startsWith("IPFS:")) {
                          const hash = contentHtml.substring(5);
                          contentHtml = `<img src="http://127.0.0.1:8080/ipfs/${hash}" style="max-width:100%; max-height:200px; display:block; margin-top:5px;">`;
@@ -273,9 +354,6 @@
                     `;
 
                     feed.prepend(card);
-
-                    // Limit total items (but keep hidden ones for toggling if we want, or just limit total DOM nodes)
-                    // Let's limit visible nodes? No, limit total nodes to avoid leak
                     if (feed.children.length > 50) feed.removeChild(feed.lastChild);
 
                 } catch(e) {

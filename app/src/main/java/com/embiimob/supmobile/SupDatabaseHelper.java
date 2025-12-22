@@ -82,4 +82,25 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getReadableDatabase();
         return db.query(TABLE_PROFILES, null, COL_URN + "=?", new String[]{urn}, null, null, null);
     }
+
+    public String getMessagesJson(int limit) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.query(TABLE_MESSAGES, null, null, null, null, null, COL_TIMESTAMP + " DESC", String.valueOf(limit));
+
+        StringBuilder json = new StringBuilder("[");
+        while (cursor.moveToNext()) {
+            if (json.length() > 1) json.append(",");
+            String txid = cursor.getString(cursor.getColumnIndexOrThrow(COL_TXID));
+            String sender = cursor.getString(cursor.getColumnIndexOrThrow(COL_SENDER));
+            String content = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONTENT));
+            long time = cursor.getLong(cursor.getColumnIndexOrThrow(COL_TIMESTAMP));
+
+            // Simple JSON construction
+            json.append(String.format("{\"txid\":\"%s\",\"sender\":\"%s\",\"content\":\"%s\",\"timestamp\":%d}",
+                txid, sender, content.replace("\"", "\\\"").replace("\n", " "), time));
+        }
+        cursor.close();
+        json.append("]");
+        return json.toString();
+    }
 }

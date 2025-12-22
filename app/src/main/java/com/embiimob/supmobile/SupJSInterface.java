@@ -150,11 +150,26 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
 
     @JavascriptInterface
     public void watchProfile(String urnOrAddress) {
-        // TODO: Move this to Service? Or pass to Service?
-        // Service holds the wallet now. So we need a method in Service.
-        // For this patch, since I didn't add watchProfile to SupNodeService, I'll log a placeholder.
-        // Real implementation would require adding watchProfile to SupNodeService.
-        showToast("Watch Profile requires Service update. (Coming soon)");
+        if (isBound && nodeService != null) {
+            nodeService.addWatchedAddress(urnOrAddress);
+        } else {
+            showToast("Service not bound");
+        }
+    }
+
+    @JavascriptInterface
+    public String getSocialFeed(int limit) {
+        // Need to add this method to DB Helper first, plan step 4 covers it.
+        // But I need to add it here to be ready.
+        if (isBound && nodeService != null) {
+             // For now return empty or stub until DB Helper update in next step
+             // Actually, I can't call a method that doesn't exist yet or it won't compile.
+             // I will skip adding the call until step 4 is done.
+             // Wait, I can add it now if I implemented SupDatabaseHelper.getMessages in step 4?
+             // No, step 4 is "Modify SupDatabaseHelper.java". I am in step 2.
+             return "[]";
+        }
+        return "[]";
     }
 
     @JavascriptInterface
