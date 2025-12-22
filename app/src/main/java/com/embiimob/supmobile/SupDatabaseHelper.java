@@ -103,4 +103,39 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
         json.append("]");
         return json.toString();
     }
+
+    public String getObjectsJson(String address) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        // Assuming objects are messages created by the address
+        Cursor cursor = db.query(TABLE_MESSAGES, null, COL_SENDER + "=?", new String[]{address}, null, null, COL_TIMESTAMP + " DESC");
+
+        StringBuilder json = new StringBuilder("[");
+        while (cursor.moveToNext()) {
+            if (json.length() > 1) json.append(",");
+            String content = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONTENT));
+
+            // We need to return a structure compatible with index.html's displayObjects
+            // content is usually raw JSON. We wrap it or assume it's the object.
+            // If content is not JSON, we might skip or wrap.
+            // For robustness, we try to detect if it looks like an object definition
+            // or just inject it and let JS parse.
+            // But index.html expects fields like Creators, URN.
+            // We can fake it if missing.
+
+            // Naive approach: Just dump the content if it looks like JSON object.
+            // If not, wrap it.
+            String trimmed = content.trim();
+            if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+                json.append(trimmed);
+            } else {
+                // Fallback for non-JSON content (maybe just a message)
+                // index.html might ignore it if fields are missing.
+                json.append(String.format("{\"Description\":\"%s\",\"Creators\":{\"%s\":\"\"}}",
+                    content.replace("\"", "\\\"").replace("\n", " "), address));
+            }
+        }
+        cursor.close();
+        json.append("]");
+        return json.toString();
+    }
 }

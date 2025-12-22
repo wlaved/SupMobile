@@ -207,22 +207,25 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
     public String localProfileSearch(String urn) {
         if (!isBound || nodeService == null) return null;
 
-        // Basic implementation: check DB for profile
-        // Since we are just indexing messages for now, we might not have full profile metadata
-        // but we can return basic structure to satisfy "Offline Search" expectation.
         SupDatabaseHelper db = nodeService.getDbHelper();
         if (db != null) {
-            // For now, check if we have messages for this URN/Address?
-            // Or just return null if not explicitly in a "Profiles" table
             Cursor c = db.getProfile(urn);
             if (c != null && c.moveToFirst()) {
-                // Return cached profile
-                // Stub for future enhancement
                 c.close();
                 return "{\"URN\":\"" + urn + "\", \"offline\": true}";
             }
         }
         return null;
+    }
+
+    @JavascriptInterface
+    public String localObjectSearch(String address) {
+        if (!isBound || nodeService == null) return "[]";
+        SupDatabaseHelper db = nodeService.getDbHelper();
+        if (db != null) {
+            return db.getObjectsJson(address);
+        }
+        return "[]";
     }
 
     private void showToast(String msg) {

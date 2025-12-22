@@ -591,17 +591,46 @@ pperCase() : `${urn.split(':')[0].toUpperCase()}-T`;
     return response.json();
   };
 
-  const fetchProfile = (urn, mainnet) => fetchAPI(
-    `https://p2fk.io/GetProfileByURN/${encodeURIComponent(urn)}?mainnet=${mainne
-t}`,
-    `Profile not found for URN: ${urn}`
-  );
+  const fetchProfile = async (urn, mainnet) => {
+      try {
+          const response = await fetch(`https://p2fk.io/GetProfileByURN/${encodeURIComponent(urn)}?mainnet=${mainnet}`);
+          if (response.ok) return await response.json();
+          throw new Error("Profile API failed");
+      } catch (e) {
+          if (window.SupApp && window.SupApp.localProfileSearch) {
+              const local = window.SupApp.localProfileSearch(urn);
+              if (local) return JSON.parse(local);
+          }
+          throw e;
+      }
+  };
 
-  const fetchObjectsByAddress = (address, mainnet) => fetchAPI(
-    `https://p2fk.io/GetObjectsByAddress/${address}?skip=0&qty=-1&mainnet=${main
-net}&verbose=false`,
-    `Objects not found for address: ${address}`
-  );
+  const fetchObjectsByAddress = async (address, mainnet) => {
+      try {
+          // Attempt API
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          const response = await fetch(`https://p2fk.io/GetObjectsByAddress/${address}?skip=0&qty=-1&mainnet=${mainnet}&verbose=false`, {
+              signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+          if (response.ok) return await response.json();
+          throw new Error("API Fetch failed");
+      } catch (e) {
+          console.log("API unavailable for objects, checking local DB...");
+          // Fallback to local
+          if (window.SupApp && window.SupApp.localObjectSearch) {
+              const local = window.SupApp.localObjectSearch(address);
+              if (local) {
+                  try {
+                      const parsed = JSON.parse(local);
+                      if (parsed && parsed.length > 0) return parsed;
+                  } catch(err) { console.error(err); }
+              }
+          }
+          throw e; // Rethrow if neither worked
+      }
+  };
 
   const fetchObjectsByKeyword = async (keyword, mainnet) => {
     const url = `https://p2fk.io/GetObjectsByKeyword/${encodeURIComponent(keywor
@@ -620,6 +649,16 @@ d)}?mainnet=${mainnet}&verbose=false`;
       if (profile) cacheProfile(address, profile);
       return profile;
     } catch (e) {
+      // Fallback
+      if (window.SupApp && window.SupApp.localProfileSearch) {
+          // localProfileSearch is currently URN based but we can try address
+          const local = window.SupApp.localProfileSearch(address);
+          if (local) {
+              const p = JSON.parse(local);
+              cacheProfile(address, p);
+              return p;
+          }
+      }
       return null;
     }
   };
@@ -1203,15 +1242,32 @@ value); // Initialize sorted
           state.totalObjects = state.allObjects.length;
           profile = await fetchProfile(inputUrn, isMainnet);
         } else {
-          profile = await fetchProfile(inputUrn, isMainnet);
-          state.creatorAddress = profile?.Creators[0] || '';
-          state.allObjects = await fetchObjectsByAddress(state.creatorAddress, i
-sMainnet);
-          state.filteredObjects = sortObjects(state.allObjects, $('sortSelect').
-value); // Initialize sorted
+          // Try URN first
+          try {
+              profile = await fetchProfile(inputUrn, isMainnet);
+          } catch(e) {
+              console.log("Fetch by URN failed, trying address...");
+          }
+
+          // Try Address
+          if (!profile) {
+              profile = await fetchProfileByAddress(inputUrn, isMainnet);
+          }
+
+          if (profile) {
+              state.creatorAddress = profile.Creators?.[0] || inputUrn; // Fallback to input if creator empty
+          } else {
+              // Assume input is address if valid format, or just try it
+              state.creatorAddress = inputUrn;
+              // Mock a profile for display
+              profile = { URN: inputUrn, DisplayName: abbreviateAddress(inputUrn) };
+          }
+
+          state.allObjects = await fetchObjectsByAddress(state.creatorAddress, isMainnet);
+          state.filteredObjects = sortObjects(state.allObjects, $('sortSelect').value);
         }
       }
-      await displayProfile(profile, isMainnet, isKeywordSearch, searchTerm);
+      await displayProfile(profile || { URN: inputUrn }, isMainnet, isKeywordSearch, searchTerm);
       if (state.creatorAddress || isKeywordSearch) {
         state.totalObjects = state.allObjects.length;
         await loadObjects(isMainnet);
