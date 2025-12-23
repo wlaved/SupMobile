@@ -158,6 +158,13 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
     }
 
     @JavascriptInterface
+    public void stopLocalScan() {
+        if (isBound && nodeService != null) {
+            nodeService.stopScan();
+        }
+    }
+
+    @JavascriptInterface
     public String getSocialFeed(int limit) {
         if (isBound && nodeService != null) {
              SupDatabaseHelper db = nodeService.getDbHelper();

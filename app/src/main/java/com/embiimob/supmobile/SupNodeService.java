@@ -45,6 +45,7 @@ public class SupNodeService extends Service {
     private BlockChain blockChain;
     private boolean isRunning = false;
     private boolean isMainnet = false;
+    private boolean isScanning = false;
     private String customStoragePath = null;
 
     // Listeners
@@ -206,7 +207,17 @@ public class SupNodeService extends Service {
         }
     }
 
+    public void stopScan() {
+        isScanning = false;
+        broadcast("system_log", "Scan stopping...");
+    }
+
     public void startLocalScan() {
+        if (isScanning) {
+             broadcast("system_log", "Scan already in progress.");
+             return;
+        }
+        isScanning = true;
         new Thread(() -> {
             try {
                 broadcast("system_log", "Starting Local Blockchain Scan...");
@@ -234,6 +245,7 @@ public class SupNodeService extends Service {
 
                 if (!hasBlocks) {
                     broadcast("system_log", "No blk*.dat files found in: " + scanTarget.getAbsolutePath());
+                    isScanning = false;
                     return;
                 }
 
@@ -247,8 +259,11 @@ public class SupNodeService extends Service {
 
                 BlockchainScanner scanner = new BlockchainScanner(params, scanTarget.getAbsolutePath());
                 scanner.scanForOpReturn(new BlockchainScanner.FileScanListener() {
+                    private long lastUpdate = 0;
+
                     @Override
                     public void onFileComplete(String fileName) {
+                        if (!isScanning) return;
                         // Save progress
                         android.content.SharedPreferences prefs = getSharedPreferences("SupPrefs", Context.MODE_PRIVATE);
                         prefs.edit().putString("lastScannedFile_" + (isMainnet ? "main" : "test"), fileName).apply();
@@ -256,48 +271,56 @@ public class SupNodeService extends Service {
 
                     @Override
                     public void onOpReturnFound(String txId, byte[] data) {
+                        if (!isScanning) return;
                         String asciiData = new String(data);
-                        // In Scanner, sender is hard to know without full index, assume generic for now
-                        // or try to parse if Sup protocol puts address in OP_RETURN (it usually doesn't, it's in inputs)
-                        // For now, mark isWatched=false for history scan unless we match content?
-                        // Or just let history be global.
                         boolean isWatched = false;
-
-                        String json = String.format("{\"type\":\"scanner\", \"sender\":\"History\", \"content\":\"%s\", \"txid\":\"%s\", \"watched\":%b}",
-                                            asciiData.replace("\"", "\\\"").replace("\n", " "), txId, isWatched);
-                        broadcast("new_post", json);
 
                         // Index Locally
                         dbHelper.addMessage(txId, "History", null, asciiData, isWatched);
 
+                        // Throttle broadcasts for UI performance during bulk scan
+                        // We do NOT broadcast every single historical message to "new_post" to avoid UI flood.
+                        // "Activity Feed" should pull from DB on demand or we rely on 'getSocialFeed' refresh.
+                        // However, if we want "Live" feel, we can throttle or batch.
+                        // For now: only broadcast IPFS or log occasionally.
+
                         if (asciiData.startsWith("IPFS")) {
                              broadcast("ipfs_found", asciiData.substring(5));
-                             broadcast("system_log", "Scanner Found IPFS: " + asciiData);
+                             // Throttle log
+                             if (System.currentTimeMillis() - lastUpdate > 1000) {
+                                 broadcast("system_log", "Scanner Found IPFS: " + asciiData);
+                                 lastUpdate = System.currentTimeMillis();
+                             }
                         }
                     }
 
                     @Override
                     public void onProgress(int blocksScanned) {
-                        broadcast("system_log", "Scanning... Processed " + blocksScanned + " blocks");
+                        if (!isScanning) throw new RuntimeException("Scan Stopped by User");
+                        // Throttle progress updates to every 2 seconds
+                        if (System.currentTimeMillis() - lastUpdate > 2000) {
+                             broadcast("system_log", "Scanning... Processed " + blocksScanned + " blocks");
+                             lastUpdate = System.currentTimeMillis();
+                        }
                     }
 
                     @Override
                     public void onScanComplete() {
+                        isScanning = false;
                         broadcast("system_log", "Blockchain Scan Complete!");
-                        // Clear resume point on complete? Or keep it?
-                        // If complete, maybe we want to re-scan later for new files?
-                        // For now, assume done.
                     }
 
                     @Override
                     public void onScanError(String error) {
+                        isScanning = false;
                         broadcast("system_log", "Scan Error: " + error);
                     }
                 }, lastFile);
 
             } catch (Exception e) {
                 e.printStackTrace();
-                broadcast("system_log", "Scanner Failed: " + e.getMessage());
+                isScanning = false;
+                broadcast("system_log", "Scanner Stopped: " + e.getMessage());
             }
         }).start();
     }

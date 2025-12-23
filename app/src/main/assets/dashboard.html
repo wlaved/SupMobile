@@ -92,7 +92,8 @@
 
         <div style="border: 1px solid #444; padding: 10px; border-radius: 8px;">
             <div style="font-size: 0.9em; margin-bottom: 5px;">Import Tools</div>
-            <button onclick="scanBlockchain()" style="border-color: #bb86fc; color: #bb86fc; width: 100%;">Import/Rescan Local Blocks</button>
+            <button onclick="scanBlockchain()" style="border-color: #bb86fc; color: #bb86fc; width: 48%;">Import</button>
+            <button onclick="stopScan()" style="border-color: #cf6679; color: #cf6679; width: 48%;">Stop</button>
             <label style="display: block; margin-top: 8px; font-size: 0.8em; color: #b0b0b0;">
                 <input type="checkbox" id="autoScanToggle" onchange="toggleAutoScan()"> Auto-Import on Startup
             </label>
@@ -176,6 +177,12 @@
                 window.SupApp.startLocalScan();
             } else {
                 alert("Bridge not active");
+            }
+        }
+
+        function stopScan() {
+            if (window.SupApp) {
+                window.SupApp.stopLocalScan();
             }
         }
 
@@ -328,11 +335,36 @@
                  <div style="font-size:0.7em; color:#666; margin-top:5px;">TXID: ${txid.substring(0,8)}...</div>
              `;
 
+             card.onclick = () => showMessageDetails(msg);
+             card.style.cursor = "pointer";
+
              if (prepend) {
                  feed.prepend(card);
              } else {
                  feed.appendChild(card);
              }
+        }
+
+        function showMessageDetails(msg) {
+             const sender = msg.sender || msg.FromAddress || "Unknown";
+             const txid = msg.txid || msg.TransactionId || "???";
+             const time = msg.timestamp ? new Date(msg.timestamp).toLocaleString() : new Date().toLocaleString();
+             const content = msg.content || msg.Message || "";
+
+             const modal = document.createElement('div');
+             modal.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; justify-content:center; align-items:center; z-index:1000;";
+             modal.innerHTML = `
+                 <div style="background:#1e1e1e; padding:20px; border-radius:10px; max-width:90%; max-height:80%; overflow-y:auto; text-align:left; border:1px solid #bb86fc;">
+                     <h3 style="color:#bb86fc; margin-top:0;">Message Details</h3>
+                     <p><strong>From:</strong> ${sender}</p>
+                     <p><strong>Date:</strong> ${time}</p>
+                     <p><strong>TXID:</strong> <a href="index.html?tid=${txid}" style="color:#03dac6;">${txid}</a></p>
+                     <hr style="border-color:#333;">
+                     <div style="white-space:pre-wrap; word-break:break-word;">${content.replace(/</g, "&lt;")}</div>
+                     <button onclick="this.parentElement.parentElement.remove()" style="margin-top:20px; width:100%; background:#333; color:white; border:none; padding:10px; cursor:pointer;">Close</button>
+                 </div>
+             `;
+             document.body.appendChild(modal);
         }
 
         // Bridge Callback

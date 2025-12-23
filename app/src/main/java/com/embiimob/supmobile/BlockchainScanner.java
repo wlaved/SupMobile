@@ -26,6 +26,8 @@ public class BlockchainScanner {
         if (dir.exists() && dir.isDirectory()) {
             File[] files = dir.listFiles((d, name) -> name.startsWith("blk") && name.endsWith(".dat"));
             if (files != null) {
+                // Important: Sort files to ensure processing order (blk00000 -> blk00001 ...)
+                java.util.Arrays.sort(files, (f1, f2) -> f1.getName().compareTo(f2.getName()));
                 for (File f : files) blockFiles.add(f);
             }
         }
