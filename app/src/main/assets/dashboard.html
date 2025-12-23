@@ -56,6 +56,24 @@
             color: white;
             border-radius: 5px;
         }
+        .tab-bar {
+            display: flex;
+            border-bottom: 1px solid #444;
+            margin-bottom: 10px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .tab-btn.active {
+            color: #bb86fc;
+            border-bottom: 2px solid #bb86fc;
+        }
     </style>
 </head>
 <body>
@@ -101,12 +119,13 @@
 
     <!-- Live Social Feed -->
     <div class="status-panel" style="text-align: left;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <h3>Live Social Feed</h3>
-            <label style="font-size: 0.8em;"><input type="checkbox" id="filterWatched" checked onchange="filterFeed()"> Filter Watched</label>
+        <h3>Social Feed</h3>
+        <div class="tab-bar">
+            <button class="tab-btn active" id="tabAll" onclick="switchFeed('all')">All Activity</button>
+            <button class="tab-btn" id="tabWatched" onclick="switchFeed('watched')">Watched / Following</button>
         </div>
         <div id="socialFeed" style="max-height: 300px; overflow-y: auto;">
-            <div id="emptyFeed" style="color: #666; font-style: italic;">Waiting for incoming messages...</div>
+            <div id="emptyFeed" style="color: #666; font-style: italic;">Loading feed...</div>
         </div>
     </div>
 
@@ -119,6 +138,8 @@
     </div>
 
     <script>
+        let currentFeedMode = 'all';
+
         function updateStatus() {
             if (window.SupApp) {
                 const status = JSON.parse(window.SupApp.getNodeStatus());
@@ -172,6 +193,7 @@
                 window.SupApp.setNetwork(isMainnet);
             }
             console.log("Network switched to " + (isMainnet ? "Mainnet" : "Testnet"));
+            loadCachedFeed(); // Reload feed for new network
         }
 
         function toggleAutoScan() {
@@ -211,8 +233,6 @@
             }
 
             // 4. Default: Treat as URN/Address -> Social Thread (Profile)
-            // But if it looks like an Object Address (maybe?), we might want index.html?
-            // For now, default to Profile search as it's the "Social" app primary function.
             window.location.href = `SupThread.html?urn=${encodeURIComponent(input)}&mainnet=${isMainnet}`;
         }
 
@@ -225,81 +245,94 @@
             loadCachedFeed();
         });
 
+        function switchFeed(mode) {
+            currentFeedMode = mode;
+            document.getElementById('tabAll').className = mode === 'all' ? 'tab-btn active' : 'tab-btn';
+            document.getElementById('tabWatched').className = mode === 'watched' ? 'tab-btn active' : 'tab-btn';
+            loadCachedFeed();
+        }
+
         function loadCachedFeed() {
-            if (window.SupApp && window.SupApp.getSocialFeed) {
+            const feed = document.getElementById('socialFeed');
+            feed.innerHTML = '<div id="emptyFeed" style="color: #666; font-style: italic;">Loading...</div>';
+
+            if (window.SupApp) {
                 try {
-                    const data = window.SupApp.getSocialFeed(50);
+                    let data = "[]";
+                    if (currentFeedMode === 'watched' && window.SupApp.getWatchedFeed) {
+                        data = window.SupApp.getWatchedFeed(50);
+                    } else if (window.SupApp.getSocialFeed) {
+                        data = window.SupApp.getSocialFeed(50);
+                    }
+
                     const messages = JSON.parse(data);
-                    messages.forEach(msg => {
-                        // Re-use logic from onSupEvent 'new_post' but we need to refactor it or copy-paste
-                        // Refactoring is safer.
-                        addPostToFeed(msg);
-                    });
+
+                    feed.innerHTML = '';
+                    if (messages.length === 0) {
+                        feed.innerHTML = '<div id="emptyFeed" style="color: #666; font-style: italic;">No recent messages found.</div>';
+                    } else {
+                        messages.forEach(msg => {
+                            addPostToFeed(msg, false); // false = append (for history)
+                        });
+                    }
                 } catch(e) {
                     console.error("Error loading cached feed: " + e);
+                    feed.innerHTML = '<div id="emptyFeed" style="color: #cf6679;">Error loading feed.</div>';
                 }
             }
         }
 
-        function addPostToFeed(msg) {
+        function addPostToFeed(msg, prepend = true) {
              const feed = document.getElementById('socialFeed');
              const empty = document.getElementById('emptyFeed');
              if (empty) empty.style.display = 'none';
 
+             // Client-side filtering check for live events
+             if (currentFeedMode === 'watched') {
+                  // If message object doesn't have explicit 'is_watched' or 'watched' flag,
+                  // we might be showing unwanted data.
+                  // For DB data (cached), getWatchedFeed filters it.
+                  // For Live data, we check msg.watched.
+                  if (msg.watched === false || msg.watched === 0) return;
+             }
+
              const card = document.createElement('div');
              card.className = "post-card";
-             card.dataset.watched = msg.watched || "true"; // Default to true for historical/cached? Or generic?
-             // Actually, DB doesn't store 'watched' yet!
-             // We need to update DB schema or assume all indexed are valid history.
-             // For now, assume watched=true for feed display or handle undefined.
+             card.dataset.watched = msg.watched;
 
-             card.style.background = "#1e1e1e";
+             card.style.background = (msg.watched || currentFeedMode === 'watched') ? "#2a2a2a" : "#1e1e1e";
              card.style.padding = "10px";
              card.style.marginBottom = "8px";
              card.style.borderRadius = "5px";
+             if (msg.watched) {
+                 card.style.borderLeft = "3px solid #03dac6";
+             }
 
-             let contentHtml = msg.content;
+             let contentHtml = msg.content || msg.Message || ""; // Handle different JSON keys
+             // DB returns 'Message', live returns 'content'. Normalize?
+             // Helper returns "Message" (Caps). Live returns "content".
+             // Let's normalize.
+
              if (contentHtml.startsWith("IPFS:")) {
                   const hash = contentHtml.substring(5);
                   contentHtml = `<img src="http://127.0.0.1:8080/ipfs/${hash}" style="max-width:100%; max-height:200px; display:block; margin-top:5px;">`;
              }
 
+             // DB returns FromAddress, live returns sender.
+             const sender = msg.sender || msg.FromAddress || "Unknown";
+             const txid = msg.txid || msg.TransactionId || "???";
+
              card.innerHTML = `
-                 <div style="font-size:0.8em; color:#bb86fc;">${msg.sender} <span style="float:right; color:#888;">${new Date(msg.timestamp || Date.now()).toLocaleTimeString()}</span></div>
+                 <div style="font-size:0.8em; color:#bb86fc;">${sender} <span style="float:right; color:#888;">${new Date().toLocaleTimeString()}</span></div>
                  <div style="margin-top:5px; color:#e0e0e0;">${contentHtml}</div>
-                 <div style="font-size:0.7em; color:#666; margin-top:5px;">TXID: ${msg.txid.substring(0,8)}...</div>
+                 <div style="font-size:0.7em; color:#666; margin-top:5px;">TXID: ${txid.substring(0,8)}...</div>
              `;
 
-             feed.prepend(card); // Or append? Query returns DESC (newest first).
-             // If newest first, we should Append to bottom?
-             // Or Prepend?
-             // If array is [Newest, Older, Oldest], iterating them:
-             // 1. Prepend Newest -> [Newest]
-             // 2. Prepend Older -> [Older, Newest] -> Wrong order visually?
-             // If we want [Newest, Older], we should Append to the *bottom* of the container?
-             // Or iterate in reverse.
-             // Let's iterate reverse or use append.
-             // But 'live' feed uses prepend.
-             // So we should append for history?
-             // Actually, if we get [Newest...], we should render Newest at top.
-             // If we loop:
-             // Item 0 (Newest): Prepend -> [Newest]
-             // Item 1 (Older): Prepend -> [Older, Newest]
-             // So Older appears *above* Newest. That is wrong.
-             // So we should iterate backwards or Append?
-             // Wait, standard feeds show Newest at Top.
-             // Live events use prepend (add to top).
-             // Bulk load: we should insert them such that the order is preserved.
-             // If array is sorted DESC (Newest First):
-             // [N1, N2, N3]
-             // We want DOM:
-             // N1
-             // N2
-             // N3
-             // If we use Append:
-             // N1
-             // N2 ... Correct.
-             feed.appendChild(card);
+             if (prepend) {
+                 feed.prepend(card);
+             } else {
+                 feed.appendChild(card);
+             }
         }
 
         // Bridge Callback
@@ -307,7 +340,6 @@
             console.log("SupEvent: " + type + " - " + data);
 
             if (type === 'system_log' || type === 'live_feed') {
-                // Legacy 'live_feed' mapped to system log for now
                 const logDiv = document.getElementById('systemLog');
                 const entry = document.createElement('div');
                 const time = new Date().toLocaleTimeString();
@@ -319,61 +351,12 @@
             if (type === 'new_post') {
                 try {
                     const msg = JSON.parse(data);
-                    // Use helper, but helper uses append (for history).
-                    // Live needs prepend.
-                    // Let's duplicate logic for now or parameterize?
-                    // Let's just fix the block here to match the logic.
-                    const feed = document.getElementById('socialFeed');
-                    const empty = document.getElementById('emptyFeed');
-                    if (empty) empty.style.display = 'none';
-
-                    const card = document.createElement('div');
-                    card.className = "post-card";
-                    card.dataset.watched = msg.watched;
-                    card.style.background = msg.watched ? "#2a2a2a" : "#1e1e1e";
-                    card.style.padding = "10px";
-                    card.style.marginBottom = "8px";
-                    card.style.borderRadius = "5px";
-                    card.style.borderLeft = msg.watched ? "3px solid #03dac6" : "3px solid transparent";
-
-                    const filterActive = document.getElementById('filterWatched').checked;
-                    if (filterActive && !msg.watched) {
-                        card.style.display = 'none';
-                    }
-
-                    let contentHtml = msg.content;
-                    if (contentHtml.startsWith("IPFS:")) {
-                         const hash = contentHtml.substring(5);
-                         contentHtml = `<img src="http://127.0.0.1:8080/ipfs/${hash}" style="max-width:100%; max-height:200px; display:block; margin-top:5px;">`;
-                    }
-
-                    card.innerHTML = `
-                        <div style="font-size:0.8em; color:#bb86fc;">${msg.sender} <span style="float:right; color:#888;">${new Date().toLocaleTimeString()}</span></div>
-                        <div style="margin-top:5px; color:#e0e0e0;">${contentHtml}</div>
-                        <div style="font-size:0.7em; color:#666; margin-top:5px;">TXID: ${msg.txid.substring(0,8)}...</div>
-                    `;
-
-                    feed.prepend(card);
-                    if (feed.children.length > 50) feed.removeChild(feed.lastChild);
-
+                    addPostToFeed(msg, true); // true = prepend (for live)
                 } catch(e) {
                     console.error("Failed to parse post: " + e);
                 }
             }
         };
-
-        function filterFeed() {
-            const filterActive = document.getElementById('filterWatched').checked;
-            const posts = document.getElementsByClassName('post-card');
-            for (let card of posts) {
-                const isWatched = card.dataset.watched === "true";
-                if (filterActive) {
-                    card.style.display = isWatched ? "block" : "none";
-                } else {
-                    card.style.display = "block";
-                }
-            }
-        }
     </script>
 </body>
 </html>

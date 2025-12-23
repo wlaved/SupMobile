@@ -268,7 +268,7 @@ public class SupNodeService extends Service {
                         broadcast("new_post", json);
 
                         // Index Locally
-                        dbHelper.addMessage(txId, "History", null, asciiData);
+                        dbHelper.addMessage(txId, "History", null, asciiData, isWatched);
 
                         if (asciiData.startsWith("IPFS")) {
                              broadcast("ipfs_found", asciiData.substring(5));
@@ -363,7 +363,7 @@ public class SupNodeService extends Service {
                                 broadcast("new_post", json);
 
                                 // Index Locally
-                                dbHelper.addMessage(txId, sender, null, data);
+                                dbHelper.addMessage(txId, sender, null, data, isWatched);
 
                                 if (data.startsWith("IPFS:")) {
                                     String hash = data.substring(5);

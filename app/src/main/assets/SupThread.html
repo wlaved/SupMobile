@@ -457,13 +457,20 @@ or implied. The authors, including Grok 3, are not liable for any issues arising
                     const localData = window.SupApp.localProfileSearch(urn);
                     if (localData) {
                         const parsed = JSON.parse(localData);
-                        // If it has minimal data, maybe try to enhance from API in background?
-                        // For now, return local immediately for speed.
                         console.log("Found local profile data.");
                         return parsed;
                     }
                 } catch(e) {
                     console.error("Local search error: " + e);
+                }
+            }
+
+            // UI Feedback if local missing
+            if (window.SupApp) {
+                const status = JSON.parse(window.SupApp.getNodeStatus() || "{}");
+                if (status.running) {
+                     // Maybe toast/log that scan might be incomplete
+                     console.log("Profile not in local DB, but node running.");
                 }
             }
 

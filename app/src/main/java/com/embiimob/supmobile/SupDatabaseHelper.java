@@ -8,7 +8,7 @@ import android.database.sqlite.SQLiteOpenHelper;
 
 public class SupDatabaseHelper extends SQLiteOpenHelper {
     private static final String DATABASE_NAME = "sup_data.db";
-    private static final int DATABASE_VERSION = 2; // Incremented version
+    private static final int DATABASE_VERSION = 3; // Incremented version for IS_WATCHED
 
     // Table: Profiles
     public static final String TABLE_PROFILES = "profiles";
@@ -22,9 +22,10 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
     public static final String TABLE_MESSAGES = "messages";
     public static final String COL_TXID = "txid";
     public static final String COL_SENDER = "sender";
-    public static final String COL_RECEIVER = "receiver"; // New Column
+    public static final String COL_RECEIVER = "receiver";
     public static final String COL_CONTENT = "content";
     public static final String COL_TIMESTAMP = "timestamp";
+    public static final String COL_IS_WATCHED = "is_watched"; // New Column
 
     public SupDatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -44,7 +45,8 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
                 COL_SENDER + " TEXT, " +
                 COL_RECEIVER + " TEXT, " +
                 COL_CONTENT + " TEXT, " +
-                COL_TIMESTAMP + " INTEGER)";
+                COL_TIMESTAMP + " INTEGER, " +
+                COL_IS_WATCHED + " INTEGER DEFAULT 0)";
 
         db.execSQL(createProfiles);
         db.execSQL(createMessages);
@@ -52,14 +54,22 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_PROFILES);
-        db.execSQL("DROP TABLE IF EXISTS " + TABLE_MESSAGES);
-        onCreate(db);
+        if (oldVersion < 3) {
+            // Migration for version 3: Add is_watched column
+            // We can try to alter table if table exists, or drop/create.
+            // Since this is dev, drop/create is safer/easier but loses data.
+            // Given "Local Scan" can be re-run, dropping is acceptable for this stage.
+            // However, a proper migration is better practice.
+            // Let's drop for now to ensure clean schema.
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_PROFILES);
+            db.execSQL("DROP TABLE IF EXISTS " + TABLE_MESSAGES);
+            onCreate(db);
+        }
     }
 
     // --- Helper Methods ---
 
-    public void addMessage(String txid, String sender, String receiver, String content) {
+    public void addMessage(String txid, String sender, String receiver, String content, boolean isWatched) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COL_TXID, txid);
@@ -67,6 +77,7 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
         values.put(COL_RECEIVER, receiver);
         values.put(COL_CONTENT, content);
         values.put(COL_TIMESTAMP, System.currentTimeMillis());
+        values.put(COL_IS_WATCHED, isWatched ? 1 : 0);
         db.insertWithOnConflict(TABLE_MESSAGES, null, values, SQLiteDatabase.CONFLICT_IGNORE);
     }
 
@@ -87,8 +98,17 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
     }
 
     public String getMessagesJson(int limit) {
+        return getMessagesJsonInternal(limit, false);
+    }
+
+    public String getWatchedMessagesJson(int limit) {
+        return getMessagesJsonInternal(limit, true);
+    }
+
+    private String getMessagesJsonInternal(int limit, boolean onlyWatched) {
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.query(TABLE_MESSAGES, null, null, null, null, null, COL_TIMESTAMP + " DESC", String.valueOf(limit));
+        String selection = onlyWatched ? COL_IS_WATCHED + "=1" : null;
+        Cursor cursor = db.query(TABLE_MESSAGES, null, selection, null, null, null, COL_TIMESTAMP + " DESC", String.valueOf(limit));
 
         StringBuilder json = new StringBuilder("[");
         while (cursor.moveToNext()) {
@@ -99,8 +119,6 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
             String content = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONTENT));
             long time = cursor.getLong(cursor.getColumnIndexOrThrow(COL_TIMESTAMP));
 
-            // Format date for UI compatibility (YYYY-MM-DD...)
-            // UI expects BlockDate usually, but we use timestamp here.
             String dateStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(time));
 
             json.append(String.format("{\"TransactionId\":\"%s\",\"FromAddress\":\"%s\",\"ToAddress\":\"%s\",\"Message\":\"%s\",\"BlockDate\":\"%s\"}",
@@ -113,7 +131,6 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
 
     public String getMessagesByAddressJson(String address) {
         SQLiteDatabase db = this.getReadableDatabase();
-        // Query sender OR receiver
         String selection = COL_SENDER + "=? OR " + COL_RECEIVER + "=?";
         String[] selectionArgs = new String[]{address, address};
 
@@ -127,7 +144,7 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
             String receiver = cursor.isNull(cursor.getColumnIndexOrThrow(COL_RECEIVER)) ? "" : cursor.getString(cursor.getColumnIndexOrThrow(COL_RECEIVER));
             String content = cursor.getString(cursor.getColumnIndexOrThrow(COL_CONTENT));
             long time = cursor.getLong(cursor.getColumnIndexOrThrow(COL_TIMESTAMP));
-             String dateStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(time));
+            String dateStr = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new java.util.Date(time));
 
             json.append(String.format("{\"TransactionId\":\"%s\",\"FromAddress\":\"%s\",\"ToAddress\":\"%s\",\"Message\":\"%s\",\"BlockDate\":\"%s\"}",
                 txid, sender, receiver, content.replace("\"", "\\\"").replace("\n", " "), dateStr));
@@ -139,7 +156,6 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
 
     public String getObjectsJson(String address) {
         SQLiteDatabase db = this.getReadableDatabase();
-        // Objects are typically created by the user (sender)
         Cursor cursor = db.query(TABLE_MESSAGES, null, COL_SENDER + "=?", new String[]{address}, null, null, COL_TIMESTAMP + " DESC");
 
         StringBuilder json = new StringBuilder("[");

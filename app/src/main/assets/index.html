@@ -421,30 +421,27 @@ deg); } }
 <body>
   <div class="container">
     <div class="search-bar">
-      <button class="home-btn" onclick="window.location.href='dashboard.html'">🏠</button>
-      <input type="text" id="urnInput" placeholder="Search Object/Profile...">
-      <button onclick="searchProfile()" style="padding: 8px 12px; background: #6200ea; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍</button>
-      <label><input type="checkbox" id="mainnetToggle"> Mainnet</label>
-      <select id="sortSelect">
-        <option value="newest">Newest</option>
-        <option value="oldest">Oldest</option>
-        <option value="highestPrice">Highest Price</option>
-        <option value="lowestPrice">Lowest Price</option>
-        <option value="highestActivity">Highest Activity</option>
-      </select>
-      <div class="filter-buttons">
-        <button id="filterAll" class="active" onclick="filterObjects('all')">All
-</button>
-        <button id="filterCreated" onclick="filterObjects('created')">Created</b
-utton>
-        <button id="filterOwned" onclick="filterObjects('owned')">Owned</button>
+      <div style="display:flex; width:100%; gap:5px; margin-bottom:5px;">
+          <button class="home-btn" onclick="window.location.href='dashboard.html'">🏠</button>
+          <input type="text" id="urnInput" placeholder="Search Objects (Address, URN, Keyword)..." style="flex:1;">
+          <button onclick="searchProfile()" style="padding: 8px 12px; background: #6200ea; color: white; border: none; border-radius: 5px; cursor: pointer;">🔍</button>
       </div>
-      <div id="objectCount" class="object-count" style="display: none;"></div>
 
-      <!-- In-Page Search -->
-      <div style="flex: 1 1 100%; display: flex; gap: 5px; margin-top: 5px;">
-          <input type="text" id="inPageSearch" placeholder="Search another Object/Address..." style="flex: 1; padding: 8px; border-radius: 5px; border: 1px solid #333; background: #1e1e1e; color: white;">
-          <button onclick="doInPageSearch()" style="padding: 8px 12px; background: #6200ea; color: white; border: none; border-radius: 5px; cursor: pointer;">Search</button>
+      <div style="display:flex; width:100%; gap:10px; flex-wrap:wrap; align-items:center;">
+          <label><input type="checkbox" id="mainnetToggle"> Mainnet</label>
+          <select id="sortSelect">
+            <option value="newest">Newest</option>
+            <option value="oldest">Oldest</option>
+            <option value="highestPrice">Highest Price</option>
+            <option value="lowestPrice">Lowest Price</option>
+            <option value="highestActivity">Highest Activity</option>
+          </select>
+          <div class="filter-buttons">
+            <button id="filterAll" class="active" onclick="filterObjects('all')">All</button>
+            <button id="filterCreated" onclick="filterObjects('created')">Created</button>
+            <button id="filterOwned" onclick="filterObjects('owned')">Owned</button>
+          </div>
+          <div id="objectCount" class="object-count" style="display: none;"></div>
       </div>
     </div>
     <div id="profileSection" class="profile-section">
