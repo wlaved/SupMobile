@@ -106,6 +106,8 @@
         <div class="status-item">Peers: <span id="peerCount">0</span></div>
         <div class="status-item">Height: <span id="chainHeight">0</span></div>
         <div class="status-item">Storage: <span id="storagePath">Internal</span></div>
+        <div class="status-item" style="color:#03dac6;">Indexed Messages: <span id="dbMsgCount">0</span></div>
+        <div class="status-item" style="color:#03dac6;">Indexed Profiles: <span id="dbProfileCount">0</span></div>
 
         <div style="margin-top: 20px;">
             <label>Manual Storage Path (Select 'SUP' Folder):</label>
@@ -147,8 +149,13 @@
                 document.getElementById('nodeState').textContent = status.running ? "Running" : "Stopped";
                 document.getElementById('peerCount').textContent = status.peers;
                 document.getElementById('chainHeight').textContent = status.height;
-                // Only show path if initialized or explicitly set
                 document.getElementById('storagePath').textContent = status.path || "Not set";
+
+                if (window.SupApp.getDatabaseStats) {
+                     const stats = JSON.parse(window.SupApp.getDatabaseStats());
+                     document.getElementById('dbMsgCount').textContent = stats.messages;
+                     document.getElementById('dbProfileCount').textContent = stats.profiles;
+                }
             }
         }
 

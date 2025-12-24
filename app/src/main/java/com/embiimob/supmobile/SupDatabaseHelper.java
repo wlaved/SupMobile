@@ -175,4 +175,14 @@ public class SupDatabaseHelper extends SQLiteOpenHelper {
         json.append("]");
         return json.toString();
     }
+
+    public long getMessageCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return android.database.DatabaseUtils.queryNumEntries(db, TABLE_MESSAGES);
+    }
+
+    public long getProfileCount() {
+        SQLiteDatabase db = this.getReadableDatabase();
+        return android.database.DatabaseUtils.queryNumEntries(db, TABLE_PROFILES);
+    }
 }

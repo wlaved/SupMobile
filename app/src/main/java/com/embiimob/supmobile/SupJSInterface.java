@@ -165,6 +165,19 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
     }
 
     @JavascriptInterface
+    public String getDatabaseStats() {
+        if (isBound && nodeService != null) {
+            SupDatabaseHelper db = nodeService.getDbHelper();
+            if (db != null) {
+                long msgCount = db.getMessageCount();
+                long profileCount = db.getProfileCount();
+                return String.format("{\"messages\": %d, \"profiles\": %d}", msgCount, profileCount);
+            }
+        }
+        return "{\"messages\": 0, \"profiles\": 0}";
+    }
+
+    @JavascriptInterface
     public String getSocialFeed(int limit) {
         if (isBound && nodeService != null) {
              SupDatabaseHelper db = nodeService.getDbHelper();
