@@ -320,7 +320,7 @@ public class SupNodeService extends Service {
             } catch (Exception e) {
                 e.printStackTrace();
                 isScanning = false;
-                broadcast("system_log", "Scanner Stopped: " + e.getMessage());
+                broadcast("system_log", "Scanner Failed: " + e.getMessage());
             }
         }).start();
     }
