@@ -92,8 +92,9 @@
 
         <div style="border: 1px solid #444; padding: 10px; border-radius: 8px;">
             <div style="font-size: 0.9em; margin-bottom: 5px;">Import Tools</div>
-            <button onclick="scanBlockchain()" style="border-color: #bb86fc; color: #bb86fc; width: 48%;">Import</button>
+            <button onclick="scanBlockchain()" style="border-color: #bb86fc; color: #bb86fc; width: 48%;">Import Blocks</button>
             <button onclick="stopScan()" style="border-color: #cf6679; color: #cf6679; width: 48%;">Stop</button>
+            <button onclick="importLegacy()" style="border-color: #03dac6; color: #03dac6; width: 100%; margin-top: 5px;">Import 'Root' Index</button>
             <label style="display: block; margin-top: 8px; font-size: 0.8em; color: #b0b0b0;">
                 <input type="checkbox" id="autoScanToggle" onchange="toggleAutoScan()"> Auto-Import on Startup
             </label>
@@ -190,6 +191,12 @@
         function stopScan() {
             if (window.SupApp) {
                 window.SupApp.stopLocalScan();
+            }
+        }
+
+        function importLegacy() {
+            if (window.SupApp) {
+                window.SupApp.importLegacyIndex();
             }
         }
 

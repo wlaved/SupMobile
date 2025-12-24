@@ -212,6 +212,94 @@ public class SupNodeService extends Service {
         broadcast("system_log", "Scan stopping...");
     }
 
+    public void importLegacyIndex(String rootPath) {
+        if (isScanning) {
+             broadcast("system_log", "Scan/Import already in progress.");
+             return;
+        }
+        isScanning = true;
+        new Thread(() -> {
+            try {
+                broadcast("system_log", "Starting Legacy Index Import from: " + rootPath);
+                File rootDir = new File(rootPath);
+                if (!rootDir.exists() || !rootDir.isDirectory()) {
+                    broadcast("system_log", "Invalid directory: " + rootPath);
+                    isScanning = false;
+                    return;
+                }
+
+                File[] txFolders = rootDir.listFiles(File::isDirectory);
+                if (txFolders == null) {
+                    broadcast("system_log", "No folders found.");
+                    isScanning = false;
+                    return;
+                }
+
+                int count = 0;
+                for (File txFolder : txFolders) {
+                    if (!isScanning) break;
+
+                    File rootJson = new File(txFolder, "ROOT.json");
+                    if (rootJson.exists()) {
+                        try {
+                            // Simple JSON parsing
+                            java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(rootJson));
+                            StringBuilder sb = new StringBuilder();
+                            String line;
+                            while ((line = br.readLine()) != null) sb.append(line);
+                            br.close();
+
+                            String json = sb.toString();
+
+                            // Extract fields using regex (lightweight, avoids heavy POJOs for now)
+                            // "TransactionId":"..."
+                            // "SignedBy":"..."
+                            // "Message":[...] or "Message":"..."
+
+                            String txId = extractJsonValue(json, "TransactionId");
+                            String sender = extractJsonValue(json, "SignedBy");
+                            // TODO: Extract actual message content.
+                            // For ROOT.json, content is often in files or keywords.
+                            // This example has "Message":[] (empty).
+                            // But it has "Keyword".
+                            // For social feed, we might want to synthesize a message.
+
+                            String content = json; // Default to raw JSON for now so index.html works
+
+                            dbHelper.addMessage(txId, sender, null, content, false);
+                            count++;
+
+                            if (count % 100 == 0) {
+                                broadcast("system_log", "Imported " + count + " roots...");
+                            }
+
+                        } catch (Exception e) {
+                            // Skip bad file
+                        }
+                    }
+                }
+                broadcast("system_log", "Import Complete. Processed " + count + " items.");
+            } catch (Exception e) {
+                e.printStackTrace();
+                broadcast("system_log", "Import Failed: " + e.getMessage());
+            } finally {
+                isScanning = false;
+            }
+        }).start();
+    }
+
+    private String extractJsonValue(String json, String key) {
+        try {
+            String pattern = "\"" + key + "\":\"([^\"]+)\"";
+            java.util.regex.Pattern r = java.util.regex.Pattern.compile(pattern);
+            java.util.regex.Matcher m = r.matcher(json);
+            if (m.find()) {
+                return m.group(1);
+            }
+        } catch(Exception e) {}
+        return "Unknown";
+    }
+
     public void startLocalScan() {
         if (isScanning) {
              broadcast("system_log", "Scan already in progress.");

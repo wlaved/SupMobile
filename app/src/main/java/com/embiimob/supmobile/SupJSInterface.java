@@ -158,6 +158,26 @@ public class SupJSInterface implements SupNodeService.NodeEventListener {
     }
 
     @JavascriptInterface
+    public void importLegacyIndex() {
+        if (isBound && nodeService != null) {
+            // Assume "root" folder in stored path or prompt
+            // For now, prompt via logic in dashboard or use stored path + "/root"
+            if (customStoragePath != null) {
+                // Try finding 'root' inside custom path
+                File rootDir = new File(customStoragePath, "root");
+                if (rootDir.exists()) {
+                    nodeService.importLegacyIndex(rootDir.getAbsolutePath());
+                } else {
+                    // Try just the custom path (user might have selected the root folder directly)
+                    nodeService.importLegacyIndex(customStoragePath);
+                }
+            } else {
+                showToast("Please set Storage Path first");
+            }
+        }
+    }
+
+    @JavascriptInterface
     public void stopLocalScan() {
         if (isBound && nodeService != null) {
             nodeService.stopScan();
